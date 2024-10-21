@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+      #- influxdb  # Grafana depends on InfluxDB as well - Commenting as we are connecting to remote instance
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    platform: linux/arm64
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8090:8080"
+    restart: unless-stopped
+
+  influxdb_writer:
+    build: 
+      context: /home/c2sragx03/prometheus/influx
+      dockerfile: Dockerfile
+    container_name: influxdb_writer
+    depends_on:
+      - prometheus
+    environment:
+      INFLUXDB_URL: "172.16.233.243:8086"
+      INFLUXDB_TOKEN: "EkQiFpHFuMOuC2Wdu-9EFVziQ99gZTch5NP7lpYeF3McppKnvTyq7Yn7crPkzgTcsOIYNc-mp23UCYId_JCDyg=="
+      INFLUXDB_ORG: "testbed-test"
+      INFLUXDB_BUCKET: "metrics"
+    restart: on-failure
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana-storage:
+    driver: local
