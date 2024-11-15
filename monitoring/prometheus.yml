@@ -19,13 +19,13 @@ scrape_configs:
     static_configs:
       - targets: ['cadvisor:8080']
         labels:
-          cnode_name: 'AGX03-Docker'
+          cnode_name: 'AGX03-docker'
       - targets: ['192.168.1.16:8090']
         labels:
-          cnode_name: 'Nano06-Docker'
+          cnode_name: 'Nano06-docker'
       - targets: ['192.168.1.15:8090']
         labels:
-          cnode_name: 'Nano06-Docker'
+          cnode_name: 'Nano06-docker'
 
   - job_name: 'tegrastats_exporter'
     static_configs:

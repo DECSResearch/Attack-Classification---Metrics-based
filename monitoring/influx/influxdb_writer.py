@@ -4,7 +4,7 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from datetime import datetime, timedelta
 
 # Prometheus settings
-PROMETHEUS_URL = "http://prometheus:9090"  # Use Prometheus service name since it's running in Docker
+PROMETHEUS_URL = "http://prometheus:9090"  # Use Prometheus service name since it's running in docker
 START_TIME = int((datetime.now() - timedelta(hours=2)).timestamp())  # Query data for the past 2 hours
 END_TIME = int(datetime.now().timestamp())
 STEP = "30"  # Query data every 60 seconds
