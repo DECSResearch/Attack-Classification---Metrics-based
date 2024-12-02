@@ -18,7 +18,6 @@ def parse_arguments():
 def get_round_config(server_round: int) -> Dict:
     return {"server_round": server_round}
 
-
 def weighted_average(metrics: List[Tuple[int, fl.common.Metrics]]) -> fl.common.Metrics:
     accuracies = [num_examples * m["mape"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
@@ -39,21 +38,6 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
         return aggregated_weights
 
 
-# class SaveModelStrategy(fl.server.strategy.FedAvg):
-#     def aggregate_fit(self, rnd, results, failures):
-#         aggregated_weights = super().aggregate_fit(rnd, results, failures)
-#         if aggregated_weights is not None:
-#             # Save aggregated_weights
-#             print(f"Saving round {rnd} aggregated_weights...")
-#             # Extract weights from results
-#             weights_list = [result.parameters for result in results]
-#             for i, weight in enumerate(weights_list):
-#                 print(f"Weight {i} shape: {weight.shape}")
-#                 print(f"First few values of weight {i}: {weight.flatten()[:5]}")
-#             np.savez(f"round-{rnd}-weights.npz", *weights_list)
-#         return aggregated_weights
-
-
 if __name__ == "__main__":
     args = parse_arguments()
     print("Server Configuration:")
@@ -67,10 +51,6 @@ if __name__ == "__main__":
     num_rounds = args.num_rounds
     sample_fraction = args.sample_fraction
     min_num_clients = args.min_num_clients
-
-
-    # # Create strategy and run server
-    # strategy = SaveModelStrategy()
 
     # Building Strategy
     strategy = SaveModelStrategy(
