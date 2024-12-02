@@ -1,6 +1,6 @@
 ########################################(With GPU)###########################################################
-
-FROM nvcr.io/nvidia/l4t-ml:r35.2.1-py3
+#Latest version
+FROM nvcr.io/nvidia/l4t-ml:r36.2.0-py3
 
 ENV PYTHONUNBUFFERED=1
 
@@ -13,15 +13,10 @@ COPY FL_server/src/ /app/src
 # Set the working directory to /app/src/
 WORKDIR /app/src
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y \
-    nano \
-    pkg-config \
-    libhdf5-dev \
-    gcc \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-
+# tensorflow GPU core dump problem
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+ENV TF_GPU_ALLOCATOR=cuda_malloc_async
+ENV OMP_NUM_THREADS=1
 
 #RUN pip3 install --no-cache-dir -r requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
@@ -29,5 +24,5 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Change working directory back to /app/
 WORKDIR /app
 
-# Keep the container running (replace with your actual command)
+# Keep the container running
 CMD ["tail", "-f", "/dev/null"]
