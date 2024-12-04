@@ -111,7 +111,7 @@ def interval_stress(device, target_usage, stress_duration, rest_duration, cycles
         print(f"Cycle {i+1}: Rest phase")
         time.sleep(rest_duration)
 
-def random_stress(device, target_usage, total_duration, min_interval=10, max_interval=30):
+def random_stress(device, target_usage, total_duration, min_interval=5, max_interval=15):
     """Mode 3: Random interval stress testing"""
     start_time = time.time()
     while time.time() - start_time < total_duration:
