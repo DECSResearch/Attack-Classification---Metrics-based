@@ -7,13 +7,13 @@ import random
 
 
 # Mode 1: Interval (10min stress, 10min rest)
-# python3 script.py --device gpu --usage 40 --mode 1 --duration 7200 --stress-time 20 --rest-time 20
+# python3 stressing.py --device gpu --usage 40 --mode 1 --duration 7200 --stress-time 20 --rest-time 20
 
 # Mode 2: Continuous
-# python3 script.py --device gpu --usage 40 --mode 2 --duration 3600
+# python3 stressing.py --device gpu --usage 40 --mode 2 --duration 3600
 
 # Mode 3: Random intervals
-# python3 script.py --device gpu --usage 40 --mode 3 --duration 3600
+# python3 stressing.py --device gpu --usage 40 --mode 3 --duration 3600
 
 def stress_gpu(target_usage, duration):
     """GPU stress test to maintain specified usage"""
