@@ -4,7 +4,14 @@ import time
 import argparse
 import numpy as np
 import random
+from multiprocessing import Process, active_children, Pipe
+import os
+import signal
+import sys
 
+# for some unknown reasons, if you use "X" as usage in the cpu stress, you get "X + 20" as the stressing usage
+
+# sudo docker run -it --rm --network host --name stressing --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/attack-simulation:latest bash
 
 # Mode 1: Interval (10min stress, 10min rest)
 # python3 stressing.py --device gpu --usage 40 --mode 1 --duration 7200 --stress-time 20 --rest-time 20
@@ -14,6 +21,66 @@ import random
 
 # Mode 3: Random intervals
 # python3 stressing.py --device gpu --usage 40 --mode 3 --duration 3600
+
+def loop_process(conn, affinity, check_usage):
+    """Single CPU core stress function"""
+    proc = psutil.Process()
+    proc.cpu_affinity([affinity])
+    msg = f"Process ID: {proc.pid} CPU: {affinity}"
+    conn.send(msg)
+    conn.close()
+    
+    while True:
+        if check_usage and psutil.cpu_percent() > 100:
+            time.sleep(0.05)
+        1*1
+
+def stress_cpu(target_usage, duration):
+    """Enhanced CPU stress test using process affinity"""
+    total_cores = psutil.cpu_count(logical=True)
+    cores_to_use = int((target_usage * total_cores) / 100)
+    fractional_part = (target_usage * total_cores / 100) - cores_to_use
+    
+    processes = []
+    connections = []
+    
+    # Start processes for full core usage
+    for i in range(max(0, cores_to_use - 1)):
+        parent_conn, child_conn = Pipe()
+        p = Process(target=loop_process, args=(child_conn, i, False))
+        p.start()
+        processes.append(p)
+        connections.append(parent_conn)
+    
+    # Last full core with usage checking
+    if cores_to_use > 0:
+        parent_conn, child_conn = Pipe()
+        p = Process(target=loop_process, args=(child_conn, cores_to_use - 1, True))
+        p.start()
+        processes.append(p)
+        connections.append(parent_conn)
+    
+    # Handle fractional core usage if needed
+    if fractional_part > 0:
+        parent_conn, child_conn = Pipe()
+        p = Process(target=loop_process, args=(child_conn, cores_to_use, True))
+        p.start()
+        processes.append(p)
+        connections.append(parent_conn)
+    
+    # Print process information
+    for conn in connections:
+        try:
+            print(conn.recv())
+        except EOFError:
+            continue
+    
+    # Wait for duration
+    time.sleep(duration)
+    
+    # Cleanup
+    for p in processes:
+        p.terminate()
 
 def stress_gpu(target_usage, duration):
     """GPU stress test to maintain specified usage"""
@@ -31,18 +98,6 @@ def stress_gpu(target_usage, duration):
         if float(tf.config.experimental.get_memory_usage('GPU:0')) > target_usage:
             time.sleep(0.1)
 
-def stress_cpu(target_usage, duration):
-    """CPU stress test to maintain specified usage"""
-    start_time = time.time()
-    while time.time() - start_time < duration:
-        if psutil.cpu_percent() > target_usage:
-            time.sleep(0.1)
-        else:
-            with tf.device('/CPU:0'):
-                a = tf.random.normal([1000, 1000])
-                b = tf.random.normal([1000, 1000])
-                c = tf.matmul(a, b)
-
 def interval_stress(device, target_usage, stress_duration, rest_duration, cycles):
     """Mode 1: Interval stress testing"""
     print(f"Starting interval stress test: {cycles} cycles")
@@ -56,7 +111,7 @@ def interval_stress(device, target_usage, stress_duration, rest_duration, cycles
         print(f"Cycle {i+1}: Rest phase")
         time.sleep(rest_duration)
 
-def random_stress(device, target_usage, total_duration, min_interval=60, max_interval=300):
+def random_stress(device, target_usage, total_duration, min_interval=10, max_interval=30):
     """Mode 3: Random interval stress testing"""
     start_time = time.time()
     while time.time() - start_time < total_duration:
@@ -72,7 +127,16 @@ def random_stress(device, target_usage, total_duration, min_interval=60, max_int
             print(f"Resting for {rest_time} seconds")
             time.sleep(rest_time)
 
+def sigint_handler(signum, frame):
+    """Handle keyboard interrupt"""
+    procs = active_children()
+    for p in procs:
+        p.terminate()
+    os._exit(1)
+
 def main():
+    signal.signal(signal.SIGINT, sigint_handler)
+    
     parser = argparse.ArgumentParser(description='GPU/CPU Stress Testing Tool')
     parser.add_argument('--device', choices=['gpu', 'cpu'], required=True, help='Select device')
     parser.add_argument('--usage', type=float, required=True, help='Target usage (0-100)')
