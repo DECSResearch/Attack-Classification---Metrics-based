@@ -1,3 +1,9 @@
+
+
+The usage of the cpu and gpu don't works well on the testbed
+
+
+
 sudo docker run -it --rm --network host --name stressing --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/attack-simulation:latest bash
 
 Mode 1: Interval (10s stress, 10s rest)
