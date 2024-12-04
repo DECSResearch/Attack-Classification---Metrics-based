@@ -10,6 +10,7 @@ import signal
 import sys
 
 # for some unknown reasons, if you use "X" as usage in the cpu stress, you get "X + 20" as the stressing usage
+# The usage function of cpu and gpu both don't function well on the testbed
 
 # sudo docker run -it --rm --network host --name stressing --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/attack-simulation:latest bash
 
