@@ -1,6 +1,6 @@
 
 
-The usage of the cpu and gpu don't works well on the testbed
+The usage of the cpu and gpu don't work well on the testbed
 
 
 
