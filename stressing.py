@@ -34,7 +34,8 @@ def loop_process(conn, affinity, check_usage):
         1*1
 def stress_cpu(target_usage, duration):
     """Enhanced CPU stress test using process affinity"""
-    total_cores = psutil.cpu_count(logical=True)
+    #total_cores = psutil.cpu_count(logical=True)
+    total_cores = 6 # nano has 6 cores
     cores_to_use = int((target_usage * total_cores) / 100)
     fractional_part = (target_usage * total_cores / 100) - cores_to_use
     
