@@ -1,7 +1,6 @@
+The CPU stress test is based on fully utilizing different cores of the CPU. For example, if the CPU has a total of 6 cores, 50% usage could indicate that 3 cores are being fully utilized.
 
-
-The usage of the cpu and gpu don't work well on the testbed
-
+The GPU part is unfinished.
 
 
 sudo docker run -it --rm --network host --name stressing --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/attack-simulation:latest bash
