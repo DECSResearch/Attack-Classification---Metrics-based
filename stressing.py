@@ -20,6 +20,7 @@ import sys
 # python3 stressing.py --device gpu --usage 40 --mode 2 --duration 3600
 # Mode 3: Random intervals
 # python3 stressing.py --device gpu --usage 40 --mode 3 --duration 3600
+
 def loop_process(conn, affinity, check_usage):
     """Single CPU core stress function"""
     proc = psutil.Process()
