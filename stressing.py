@@ -4,7 +4,7 @@ import time
 import argparse
 import numpy as np
 import random
-from multiprocessing import Process, active_children, Pipe
+from multiprocessing import Process, Value, Lock, active_children, Pipe
 import os
 import signal
 import sys
@@ -23,81 +23,87 @@ import sys
 # Mode 3: Random intervals
 # python3 stressing.py --device gpu --usage 40 --mode 3 --duration 3600
 
-def loop_process(conn, affinity, check_usage):
-    """Single CPU core stress function"""
-    proc = psutil.Process()
-    proc.cpu_affinity([affinity])
-    msg = f"Process ID: {proc.pid} CPU: {affinity}"
-    conn.send(msg)
-    conn.close()
-    
+def cpu_worker(target_usage, shared_usage, lock):
+    """CPU worker with fine-grained control"""
     while True:
-        if check_usage and psutil.cpu_percent() > 100:
-            time.sleep(0.05)
-        1*1
+        start_time = time.time()
+        while time.time() - start_time < 0.1:
+            pass
+            
+        with lock:
+            current_usage = shared_usage.value
+            if current_usage > target_usage:
+                time.sleep(0.1)
+            else:
+                time.sleep(0.01)
 
 def stress_cpu(target_usage, duration):
-    """Enhanced CPU stress test using process affinity"""
-    total_cores = psutil.cpu_count(logical=True)
-    cores_to_use = int((target_usage * total_cores) / 100)
-    fractional_part = (target_usage * total_cores / 100) - cores_to_use
+    """CPU stress test with shared memory for usage control"""
+    shared_usage = Value('d', 0.0)
+    lock = Lock()
+    
+    def monitor_usage():
+        while True:
+            usage = psutil.cpu_percent(interval=0.5)
+            with lock:
+                shared_usage.value = usage
+    
+    monitor_proc = Process(target=monitor_usage)
+    monitor_proc.start()
     
     processes = []
-    connections = []
+    core_count = psutil.cpu_count()
+    worker_count = max(1, int(core_count * target_usage / 100))
     
-    # Start processes for full core usage
-    for i in range(max(0, cores_to_use - 1)):
-        parent_conn, child_conn = Pipe()
-        p = Process(target=loop_process, args=(child_conn, i, False))
+    for _ in range(worker_count):
+        p = Process(target=cpu_worker, args=(target_usage, shared_usage, lock))
         p.start()
         processes.append(p)
-        connections.append(parent_conn)
     
-    # Last full core with usage checking
-    if cores_to_use > 0:
-        parent_conn, child_conn = Pipe()
-        p = Process(target=loop_process, args=(child_conn, cores_to_use - 1, True))
-        p.start()
-        processes.append(p)
-        connections.append(parent_conn)
-    
-    # Handle fractional core usage if needed
-    if fractional_part > 0:
-        parent_conn, child_conn = Pipe()
-        p = Process(target=loop_process, args=(child_conn, cores_to_use, True))
-        p.start()
-        processes.append(p)
-        connections.append(parent_conn)
-    
-    # Print process information
-    for conn in connections:
-        try:
-            print(conn.recv())
-        except EOFError:
-            continue
-    
-    # Wait for duration
-    time.sleep(duration)
-    
-    # Cleanup
-    for p in processes:
-        p.terminate()
+    try:
+        time.sleep(duration)
+    finally:
+        monitor_proc.terminate()
+        for p in processes:
+            p.terminate()
+
+def gpu_worker(batch_size, complexity):
+    """GPU worker optimized for Jetson Nano"""
+    while True:
+        with tf.device('/GPU:0'):
+            with tf.keras.mixed_precision.experimental.policy('mixed_float16'):
+                for _ in range(complexity):
+                    a = tf.random.normal([batch_size, batch_size], dtype=tf.float16)
+                    b = tf.random.normal([batch_size, batch_size], dtype=tf.float16)
+                    c = tf.matmul(a, b)
+                    _ = c.numpy()
 
 def stress_gpu(target_usage, duration):
-    """GPU stress test to maintain specified usage"""
+    """GPU stress test with dynamic load adjustment"""
     if not tf.config.list_physical_devices('GPU'):
         print("No GPU detected")
         return
         
+    batch_size = 1000
+    complexity = 2
+    
     start_time = time.time()
     while time.time() - start_time < duration:
-        with tf.device('/GPU:0'):
-            a = tf.random.normal([5000, 5000])
-            b = tf.random.normal([5000, 5000])
-            c = tf.matmul(a, b)
+        try:
+            gpu_util = float(os.popen('nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits').read())
             
-        if float(tf.config.experimental.get_memory_usage('GPU:0')) > target_usage:
-            time.sleep(0.1)
+            if gpu_util < target_usage - 5:
+                batch_size = min(batch_size + 100, 5000)
+                complexity = min(complexity + 1, 5)
+            elif gpu_util > target_usage + 5:
+                batch_size = max(batch_size - 100, 500)
+                complexity = max(complexity - 1, 1)
+                
+            gpu_worker(batch_size, complexity)
+            
+        except Exception as e:
+            print(f"Error reading GPU utilization: {e}")
+            time.sleep(1)
 
 def interval_stress(device, target_usage, stress_duration, rest_duration, cycles):
     """Mode 1: Interval stress testing"""
@@ -111,6 +117,14 @@ def interval_stress(device, target_usage, stress_duration, rest_duration, cycles
             
         print(f"Cycle {i+1}: Rest phase")
         time.sleep(rest_duration)
+
+def continuous_stress(device, target_usage, duration):
+    """Mode 2: Continuous stress testing"""
+    print(f"Starting continuous stress test for {duration} seconds")
+    if device == 'gpu':
+        stress_gpu(target_usage, duration)
+    else:
+        stress_cpu(target_usage, duration)
 
 def random_stress(device, target_usage, total_duration, min_interval=5, max_interval=15):
     """Mode 3: Random interval stress testing"""
@@ -133,7 +147,7 @@ def sigint_handler(signum, frame):
     procs = active_children()
     for p in procs:
         p.terminate()
-    os._exit(1)
+    sys.exit(0)
 
 def main():
     signal.signal(signal.SIGINT, sigint_handler)
@@ -148,19 +162,24 @@ def main():
     
     args = parser.parse_args()
     
-    if args.mode == 1:
-        if not args.stress_time or not args.rest_time:
-            print("Stress time and rest time required for interval mode")
-            return
-        cycles = args.duration // (args.stress_time + args.rest_time)
-        interval_stress(args.device, args.usage, args.stress_time, args.rest_time, cycles)
-    elif args.mode == 2:
-        if args.device == 'gpu':
-            stress_gpu(args.usage, args.duration)
+    if args.usage < 0 or args.usage > 100:
+        print("Usage must be between 0 and 100")
+        return
+        
+    try:
+        if args.mode == 1:
+            if not args.stress_time or not args.rest_time:
+                print("Stress time and rest time required for interval mode")
+                return
+            cycles = args.duration // (args.stress_time + args.rest_time)
+            interval_stress(args.device, args.usage, args.stress_time, args.rest_time, cycles)
+        elif args.mode == 2:
+            continuous_stress(args.device, args.usage, args.duration)
         else:
-            stress_cpu(args.usage, args.duration)
-    else:
-        random_stress(args.device, args.usage, args.duration)
+            random_stress(args.device, args.usage, args.duration)
+    except KeyboardInterrupt:
+        print("\nStopping stress test...")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
