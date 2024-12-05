@@ -2,6 +2,8 @@ The CPU stress test is based on fully utilizing different cores of the CPU. For 
 
 The GPU part is unfinished.
 
+Use sudo docker run -it --rm --network host --name stressing --rm --runtime=nvidia -v /usr/bin/tegrastats:/usr/bin/tegrastats --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/attack-simulation:latest bash
+So you have access to tegrastats.
 
 sudo docker run -it --rm --network host --name stressing --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/attack-simulation:latest bash
 
