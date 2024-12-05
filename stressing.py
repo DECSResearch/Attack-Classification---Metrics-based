@@ -35,8 +35,8 @@ def loop_process(conn, affinity, check_usage):
         1*1
 def stress_cpu(target_usage, duration):
     """Enhanced CPU stress test using process affinity"""
-    #total_cores = psutil.cpu_count(logical=True)
-    total_cores = 6 # nano has 6 cores
+    total_cores = psutil.cpu_count(logical=True)
+    # nano has 6 cores
     cores_to_use = int((target_usage * total_cores) / 100)
     fractional_part = (target_usage * total_cores / 100) - cores_to_use
     
@@ -95,6 +95,7 @@ def stress_gpu(target_usage, duration):
             
         if float(tf.config.experimental.get_memory_usage('GPU:0')) > target_usage:
             time.sleep(0.1)
+            
 def interval_stress(device, target_usage, stress_duration, rest_duration, cycles):
     """Mode 1: Interval stress testing"""
     print(f"Starting interval stress test: {cycles} cycles")
@@ -107,6 +108,7 @@ def interval_stress(device, target_usage, stress_duration, rest_duration, cycles
             
         print(f"Cycle {i+1}: Rest phase")
         time.sleep(rest_duration)
+        
 def random_stress(device, target_usage, total_duration, min_interval=5, max_interval=15):
     """Mode 3: Random interval stress testing"""
     start_time = time.time()
@@ -122,6 +124,7 @@ def random_stress(device, target_usage, total_duration, min_interval=5, max_inte
             rest_time = random.randint(min_interval, max_interval)
             print(f"Resting for {rest_time} seconds")
             time.sleep(rest_time)
+            
 def sigint_handler(signum, frame):
     """Handle keyboard interrupt"""
     procs = active_children()
