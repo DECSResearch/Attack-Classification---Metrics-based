@@ -21,18 +21,18 @@ declare -A CPU_PARAMS=(
     [100]="1000000;0"
 )
 
-# GPU stress levels (adjust these values based on testing)
+# GPU stress levels (tested on nano 13)
 declare -A GPU_PARAMS=(
-    [10]="1000;0.9"     # matrix_size;sleep_time
-    [20]="2000;0.8"
-    [30]="3000;0.7"
-    [40]="4000;0.6"
-    [50]="5000;0.5"
-    [60]="5000;0.4"
-    [70]="5000;0.3"
-    [80]="5000;0.2"
-    [90]="5000;0.1"
-    [100]="5000;0"
+    [10]="50;0"     # matrix_size;sleep_time
+    [20]="184;0"
+    [30]="265;0.0001"
+    [40]="294;0"
+    [50]="356;0"
+    [60]="388;0.0001"
+    [70]="576;0"
+    [80]="618;0"
+    [90]="650;0.0001"
+    [100]="650;0"
 )
 
 # Cleanup function
