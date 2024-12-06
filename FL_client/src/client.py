@@ -46,7 +46,10 @@ def load_dataset():
             file_path = os.path.join(folder_path, filename)
             dataframe = pd.read_csv(file_path)
             dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp']) # Convert 'datetimestamp' column to datetime
-            df = dataframe[['timestamp', 'jetson_total_cpu_usage', 'jetson_temperature']]
+            df = dataframe[['timestamp', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_gpu_usage_percent',
+                            'jetson_board_temperature_celsius', 'jetson_vdd_in_mw', 'jetson_cpu_usage_percent',
+                            'jetson_ram_usage_mb', 'node_network_receive_bytes_total_KBps',
+                            'node_network_transmit_bytes_total_KBps']]
             df.set_index('timestamp', inplace=True)  # Set 'datetimestamp' as index
             df.replace(0, 0.01, inplace=True)
             # Count the number of rows where zero values were replaced with 0.01
@@ -78,27 +81,37 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
     print("Train set shape:", train.shape)
     print("Test set shape:", test.shape)
 
-    seq_size = 20  # Number of time steps to look back
+    seq_size = 40  # Number of time steps to look back
+
     # larger sequence size (look further back) may improve forecasting
+
     def to_sequence(x, y, seq_size=1):
         x_values = []
         y_values = []
 
         for i in range(len(x) - seq_size):
             x_values.append(x.iloc[i:(i + seq_size)].values)
-            y_values.append(y.iloc[i:(i + seq_size)].values)
+            y_values.append(y.iloc[i:(i + seq_size)].values)  # Adjust this line for correct target shape
 
         return np.array(x_values), np.array(y_values)
 
     trainX, trainY = to_sequence(
-        train[['jetson_total_cpu_usage', 'jetson_temperature']],
-        train[['jetson_total_cpu_usage', 'jetson_temperature']],
+        train[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
+               'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
+               'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
+        train[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
+               'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
+               'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
         seq_size
     )
 
     testX, testY = to_sequence(
-        test[['jetson_total_cpu_usage', 'jetson_temperature']],
-        test[['jetson_total_cpu_usage', 'jetson_temperature']],
+        test[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
+              'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
+              'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
+        test[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
+              'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
+              'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
         seq_size
     )
 
@@ -123,14 +136,13 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         model.set_weights(parameters)
-        r= self.model.fit(self.X_train, self.y_train, epochs=5, batch_size=100, validation_split=0.2, verbose=1)
+        r= self.model.fit(self.X_train, self.y_train, epochs=50, batch_size=128, validation_split=0.2, verbose=1)
         hist = r.history
         print("Fit history : ", hist)
         return self.model.get_weights(), len(self.X_train), {}
 
     def evaluate(self, parameters, config):
         model.set_weights(parameters)
-        # loss = self.model.evaluate(self.X_test, self.y_test, verbose=0)
         eval_loss, eval_mape = self.model.evaluate(X_test, y_test)
 
         temp_loss.append(eval_loss)
@@ -138,15 +150,6 @@ class FlowerClient(fl.client.NumPyClient):
 
         print(f"Eval Loss: {eval_loss} || Eval MAPE: {eval_mape}")
         return eval_loss, len(X_test), {"mape": eval_mape}
-
-        # # Compute mae separately
-        # train_predict = self.model.predict(self.X_test)
-        # test_mae = np.mean(np.abs(train_predict - self.X_test), axis=1)
-        # mean_test_mae = np.mean(test_mae)
-        # print("Loss:", loss)
-        # print("Mean Training MAE:", mean_test_mae)
-        # return loss, len(X_train), {"mean_train_mae": mean_test_mae}
-
 
 # Main Function
 if __name__ == "__main__":
@@ -157,11 +160,13 @@ if __name__ == "__main__":
 
     #LSTM Model with Tensorflow GPU working
     model = Sequential()
-    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]),return_sequences=True))
+    model.add( LSTM(128, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True))
+    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
     model.add(RepeatVector(trainX.shape[1]))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
+    model.add(LSTM(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(TimeDistributed(Dense(trainX.shape[2])))
     model.compile(optimizer='adam', loss='mae', metrics=["mape"])
 
@@ -182,65 +187,102 @@ if __name__ == "__main__":
 ################ CALCULATING THE MAE AND MAPE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
     # Calculate MAE for training prediction
-    trainPredict = model.predict(X_train)
-    trainMAE = np.mean(np.abs(trainPredict - X_train), axis=1)
+    trainPredict = model.predict(trainX)
+    trainMAE = np.mean(np.abs(trainPredict - trainX), axis=1)
+    # Print the mean of test MAE
     print("Mean of Train MAE:", np.mean(trainMAE))
 
-    # Plot
-    plt.figure(figsize=(8, 6))
-    plt.hist(trainMAE, bins=30)
-    plt.xlabel('Mean Absolute Error (MAE)')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Mean Absolute Error (MAE) in Training Prediction')
-    plt.savefig('train_mae_histogram.png')
-    plt.close()
+    # # Plot
+    # plt.figure(figsize=(8, 6))
+    # plt.hist(trainMAE, bins=30)
+    # plt.xlabel('Mean Absolute Error (MAE)')
+    # plt.ylabel('Frequency')
+    # plt.title('Histogram of Mean Absolute Error (MAE) in Training Prediction')
+    # plt.savefig('train_mae_histogram.png')
+    # plt.close()
 
     # Calculate MAPE for each sample
-    trainActual = X_train
+    trainActual = trainX
     trainMAPE = np.mean(np.abs(trainPredict - trainActual) / trainActual, axis=1) * 100
-
     # Print the mean of MAPE
     print("Mean of Train MAPE:", np.mean(trainMAPE))
 
-    # Plot
-    plt.figure(figsize=(8, 6))
-    plt.hist(trainMAPE, bins=30)
-    plt.xlabel('Mean Absolute Percentage Error (MAPE)')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Mean Absolute Percentage Error (MAPE) in Training Prediction')
+    feature_names = [
+        'jetson_vdd_cpu_gpu_cv_mw',
+        'jetson_gpu_usage_percent',
+        'jetson_board_temperature_celsius',
+        'jetson_vdd_in_mw',
+        'jetson_cpu_usage_percent',
+        'jetson_ram_usage_mb',
+        'node_network_receive_bytes_total_KBps',
+        'node_network_transmit_bytes_total_KBps'
+    ]
+
+    # Individual histograms for MAPE with feature names
+    plt.figure(figsize=(15, 10))
+    for i in range(trainMAPE.shape[1]):
+        plt.subplot(4, 2, i + 1)  # Create a grid layout (4 rows, 2 columns)
+        plt.hist(trainMAPE[:, i], bins=30, alpha=0.7, color='green')
+        plt.title(f'MAPE for {feature_names[i]}')
+        plt.xlabel('Mean Absolute Percentage Error (MAPE)')
+        plt.ylabel('Frequency')
+
+    plt.tight_layout()
     plt.savefig('train_mape_histogram.png')
     plt.close()
 
+    # # Plot
+    # plt.figure(figsize=(8, 6))
+    # plt.hist(trainMAPE, bins=30)
+    # plt.xlabel('Mean Absolute Percentage Error (MAPE)')
+    # plt.ylabel('Frequency')
+    # plt.title('Histogram of Mean Absolute Percentage Error (MAPE) in Training Prediction')
+    # plt.savefig('train_mape_histogram.png')
+    # plt.close()
+
     # Calculate reconstruction loss (MAE) for testing dataset
-    testPredict = model.predict(X_test)
-    testMAE = np.mean(np.abs(testPredict - X_test), axis=1)
+    testPredict = model.predict(testX)
+    testMAE = np.mean(np.abs(testPredict - testX), axis=1)
 
     # Print the mean of test MAE
     print("Mean of Test MAE:", np.mean(testMAE))
 
-    # Plot histogram
-    plt.figure(figsize=(8, 6))
-    plt.hist(testMAE, bins=30)
-    plt.xlabel('Test MAE')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Mean Absolute Error (MAE) in Test Prediction')
-    plt.savefig('test_mae_histogram.png')
-    plt.close()
+    # # Plot histogram
+    # plt.figure(figsize=(8, 6))
+    # plt.hist(testMAE, bins=30)
+    # plt.xlabel('Test MAE')
+    # plt.ylabel('Frequency')
+    # plt.title('Histogram of Mean Absolute Error (MAE) in Test Prediction')
+    # plt.savefig('test_mae_histogram.png')
+    # plt.close()
 
     # Calculate MAPE for each sample
-    testActual = X_test
+    testActual = testX  # Assuming trainX contains the actual values
     testMAPE = np.mean(np.abs(testPredict - testActual) / testActual, axis=1) * 100
 
     # Print the mean of MAPE
     print("Mean of Test MAPE:", np.mean(testMAPE))
 
-    # Plot histogram of MAPE
-    plt.figure(figsize=(8, 6))
-    plt.hist(testMAPE, bins=30)
-    plt.xlabel('Mean Absolute Percentage Error (MAPE)')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Mean Absolute Percentage Error (MAPE) in Test Prediction')
+    # Individual histograms for MAPE with feature names
+    plt.figure(figsize=(15, 10))
+    for i in range(testMAPE.shape[1]):
+        plt.subplot(4, 2, i + 1)  # Create a grid layout (4 rows, 2 columns)
+        plt.hist(testMAPE[:, i], bins=30, alpha=0.7, color='green')
+        plt.title(f'MAPE for {feature_names[i]}')
+        plt.xlabel('Mean Absolute Percentage Error (MAPE)')
+        plt.ylabel('Frequency')
+
+    plt.tight_layout()
     plt.savefig('test_mape_histogram.png')
     plt.close()
+
+    # # Plot histogram of MAPE
+    # plt.figure(figsize=(8, 6))
+    # plt.hist(testMAPE, bins=30)
+    # plt.xlabel('Mean Absolute Percentage Error (MAPE)')
+    # plt.ylabel('Frequency')
+    # plt.title('Histogram of Mean Absolute Percentage Error (MAPE) in Test Prediction')
+    # plt.savefig('test_mape_histogram.png')
+    # plt.close()
 
 ####################################################################################################
