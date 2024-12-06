@@ -8,11 +8,11 @@ import numpy as np
 import pandas as pd
 import random
 import tensorflow as tf
-from tensorflow import keras
+import keras as ke
 from typing import Tuple
 import warnings
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, RepeatVector, TimeDistributed, Dense
+from keras import Sequential
+from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
 import matplotlib.pyplot as plt
 
 warnings.simplefilter('ignore')
@@ -68,8 +68,11 @@ def load_dataset():
 
 # Preprocess Dataset Function
 def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    # Print start and end date
+    print("start date of dataset is :", df.index.min())
+    print("end date of dataset is :", df.index.max())
     # Train and Test Split
-    split_index = int(len(df_scaled) * 0.8)
+    split_index = int(len(df) * 0.8)
     train = df.iloc[:split_index]
     test = df.iloc[split_index:]
 
@@ -120,15 +123,15 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
     print("test X shape", testX.shape)
     print("test Y shape", testY.shape)
 
-    return X_train, y_train, X_test, y_test
+    return trainX, trainY, testX, testY
 
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
-        self.X_train = None
-        self.y_train = None
-        self.X_test = None
-        self.y_test = None
+        self.trainX = None
+        self.trainY = None
+        self.testX = None
+        self.testY = None
         self.model = None
 
     def get_parameters(self, config):
@@ -136,14 +139,14 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         model.set_weights(parameters)
-        r= self.model.fit(self.X_train, self.y_train, epochs=50, batch_size=128, validation_split=0.2, verbose=1)
+        r= self.model.fit(self.trainX, self.trainY, epochs=5, batch_size=128, validation_split=0.2, verbose=1)
         hist = r.history
         print("Fit history : ", hist)
-        return self.model.get_weights(), len(self.X_train), {}
+        return self.model.get_weights(), len(self.trainX), {}
 
     def evaluate(self, parameters, config):
         model.set_weights(parameters)
-        eval_loss, eval_mape = self.model.evaluate(X_test, y_test)
+        eval_loss, eval_mape = self.model.evaluate(testX, testY)
 
         temp_loss.append(eval_loss)
         temp_mape.append(eval_mape)
@@ -156,7 +159,7 @@ if __name__ == "__main__":
     # Load Dataset
     df = load_dataset()
     # Preprocess/split Dataset
-    X_train, y_train, X_test, y_test = preprocess_dataset(df)
+    trainX, trainY, testX, testY = preprocess_dataset(df)
 
     #LSTM Model with Tensorflow GPU working
     model = Sequential()
@@ -172,10 +175,10 @@ if __name__ == "__main__":
 
     # Create Flower Client
     flower_client = FlowerClient()
-    flower_client.X_train = X_train
-    flower_client.y_train = y_train
-    flower_client.X_test = X_test
-    flower_client.y_test = y_test
+    flower_client.X_train = trainX
+    flower_client.y_train = trainY
+    flower_client.X_test = testX
+    flower_client.y_test = testY
     flower_client.model = model
 
     # Start Client
