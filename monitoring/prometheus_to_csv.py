@@ -19,10 +19,10 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def query_all_metrics():
     # Get the list of all active metrics from Prometheus's label values endpoint
     response = requests.get(f"{PROMETHEUS_URL}/api/v1/label/__name__/values")
-    metrics = response.json().get("data", [])
+    metrics = response.json().get("Train_data", [])
     return metrics
 
-# Function to query Prometheus for time-series data over the past 10 days for each metric
+# Function to query Prometheus for time-series Train_data over the past 10 days for each metric
 def query_metric_data(metric_name):
     params = {
         "query": metric_name,
@@ -33,16 +33,16 @@ def query_metric_data(metric_name):
     response = requests.get(f"{PROMETHEUS_URL}/api/v1/query_range", params=params)
     return response.json()
 
-# Function to save data as CSV
+# Function to save Train_data as CSV
 def save_to_csv(data, metric_name):
     # Generate the file path
     file_name = f"prometheus_data_{metric_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
     file_path = os.path.join(OUTPUT_DIR, file_name)
 
-    # Extract time-series data
-    results = data.get("data", {}).get("result", [])
+    # Extract time-series Train_data
+    results = data.get("Train_data", {}).get("result", [])
     
-    # Save the data as CSV
+    # Save the Train_data as CSV
     with open(file_path, "w", newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
         # Write the header
@@ -60,10 +60,10 @@ if __name__ == "__main__":
     # Step 1: Get all metric names
     metrics = query_all_metrics()
 
-    # Step 2: Query each metric's time-series data for the past 10 days and save it to CSV
+    # Step 2: Query each metric's time-series Train_data for the past 10 days and save it to CSV
     for metric in metrics:
         try:
             metric_data = query_metric_data(metric)
             save_to_csv(metric_data, metric)
         except Exception as e:
-            print(f"Failed to query or save data for {metric}: {e}")
+            print(f"Failed to query or save Train_data for {metric}: {e}")

@@ -107,8 +107,8 @@ TN = conf_matrix[0, 0]
 FN = conf_matrix[1, 0]
 
 print("True Positives (Anomalies correctly predicted as anomalies):", TP)
-print("False Positives (Normal data incorrectly predicted as anomalies):", FP)
-print("True Negatives (Normal data correctly predicted as normal):", TN)
+print("False Positives (Normal Train_data incorrectly predicted as anomalies):", FP)
+print("True Negatives (Normal Train_data correctly predicted as normal):", TN)
 print("False Negatives (Anomalies incorrectly predicted as normal):", FN)
 
 # Calculate Precision, Recall, and F1-score

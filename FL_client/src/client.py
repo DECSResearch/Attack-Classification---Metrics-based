@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 warnings.simplefilter('ignore')
 
-# Limit TensorFlow memory usage to 1 GB (adjust as needed)
+# Limit TensorFlow memory usage to 4 GB
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
         tf.config.experimental.set_virtual_device_configuration(
             gpus[0],
-            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])  # 1 GB
+            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4000)])
     except RuntimeError as e:
         print(e)
 
@@ -51,7 +51,7 @@ tf.random.set_seed(42)
 
 # Load Dataset Function
 def load_dataset():
-    folder_path = os.path.join('.', 'data', FOLDER_LOC)
+    folder_path = os.path.join('.', 'Train_Train_data', FOLDER_LOC)
     for filename in os.listdir(folder_path):
         if filename.endswith('.csv'):
             file_path = os.path.join(folder_path, filename)

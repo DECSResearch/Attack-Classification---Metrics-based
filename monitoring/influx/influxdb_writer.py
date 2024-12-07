@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 
 # Prometheus settings
 PROMETHEUS_URL = "http://prometheus:9090"  # Use Prometheus service name since it's running in docker
-START_TIME = int((datetime.now() - timedelta(hours=2)).timestamp())  # Query data for the past 2 hours
+START_TIME = int((datetime.now() - timedelta(hours=2)).timestamp())  # Query Train_data for the past 2 hours
 END_TIME = int(datetime.now().timestamp())
-STEP = "30"  # Query data every 60 seconds
+STEP = "30"  # Query Train_data every 60 seconds
 
 # InfluxDB settings
 INFLUXDB_URL= "172.16.233.243:8086"
@@ -23,9 +23,9 @@ write_api = client.write_api(write_options=SYNCHRONOUS)
 def query_all_metrics():
     response = requests.get(f"{PROMETHEUS_URL}/api/v1/label/__name__/values")
     data = response.json()
-    return data['data']
+    return data['Train_data']
 
-# Function to query Prometheus for time-series data of a specific metric
+# Function to query Prometheus for time-series Train_data of a specific metric
 def query_prometheus(metric_name):
     params = {
         "query": metric_name,
@@ -35,9 +35,9 @@ def query_prometheus(metric_name):
     }
     response = requests.get(f"{PROMETHEUS_URL}/api/v1/query_range", params=params)
     data = response.json()
-    return data['data']['result']
+    return data['Train_data']['result']
 
-# Function to write data to InfluxDB
+# Function to write Train_data to InfluxDB
 def write_to_influxdb(metric_name, values):
     for value in values:
         timestamp, metric_value = value
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # Step 1: Get all metric names from Prometheus
     metric_names = query_all_metrics()
 
-    # Step 2: Query each metric and push the data to InfluxDB
+    # Step 2: Query each metric and push the Train_data to InfluxDB
     for metric_name in metric_names:
         try:
             result = query_prometheus(metric_name)

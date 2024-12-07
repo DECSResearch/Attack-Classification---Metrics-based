@@ -6,7 +6,7 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./data:/prometheus
+      - ./Train_data:/prometheus
     ports:
       - "9090:9090"
     restart: unless-stopped
