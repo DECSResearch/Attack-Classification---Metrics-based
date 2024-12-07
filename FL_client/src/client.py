@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 warnings.simplefilter('ignore')
 
-# Limit TensorFlow memory usage to 4 GB
+# Limit TensorFlow memory usage to 1 GB
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
         tf.config.experimental.set_virtual_device_configuration(
             gpus[0],
-            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4000)])
+            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
     except RuntimeError as e:
         print(e)
 
@@ -51,7 +51,7 @@ tf.random.set_seed(42)
 
 # Load Dataset Function
 def load_dataset():
-    folder_path = os.path.join('.', 'Train_Train_data', FOLDER_LOC)
+    folder_path = os.path.join('.', 'Train_data', FOLDER_LOC)
     for filename in os.listdir(folder_path):
         if filename.endswith('.csv'):
             file_path = os.path.join(folder_path, filename)
@@ -150,7 +150,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         model.set_weights(parameters)
-        r= self.model.fit(self.X_train, self.y_train, epochs=5, batch_size=128, validation_split=0.2, verbose=1)
+        r= self.model.fit(self.X_train, self.y_train, epochs=10, batch_size=128, validation_split=0.2, verbose=1)
         hist = r.history
         print("Fit history : ", hist)
         return self.model.get_weights(), len(self.X_train), {}
