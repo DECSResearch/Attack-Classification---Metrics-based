@@ -9,21 +9,9 @@ GPU_PID=""
 DURATION=60
 STRESS_TIME=10
 REST_TIME=10
+INTERVAL=100000  # 100ms in microseconds
 
-# Matrix size parameters
-declare -A CPU_PARAMS=(
-    [10]="50;0.1"     # matrix_size;sleep_time
-    [20]="184;0.1"
-    [30]="265;0.1"
-    [40]="294;0.1"
-    [50]="356;0.1"
-    [60]="388;0.1"
-    [70]="576;0.1"
-    [80]="618;0.1"
-    [90]="650;0.1"
-    [100]="650;0"
-)
-
+# Matrix size parameters for GPU
 declare -A GPU_PARAMS=(
     [10]="50;0"
     [20]="184;0"
@@ -48,37 +36,46 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
-# CPU stress function
+# Function to get current CPU usage
+get_cpu_usage() {
+    top -bn1 | grep "Cpu(s)" | \
+    sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | \
+    awk '{printf "%d\n", 100 - $1}'
+}
+
+# CPU stress function using work/sleep cycles
 stress_cpu() {
-    local level=$1
-    local params=${CPU_PARAMS[$level]}
-    local matrix_size=${params%;*}
-    local sleep_time=${params#*;}
+    local target=$1
     
     for pid in "${CPU_PIDS[@]}"; do
         kill -9 $pid 2>/dev/null
     done
     CPU_PIDS=()
     
+    # Calculate work and sleep times in microseconds
+    local work_time=$((INTERVAL * target / 100))
+    local sleep_time=$((INTERVAL - work_time))
+    
     local num_cores=$(nproc)
     for ((i=0; i<num_cores; i++)); do
-        (python3 - << EOF
-import numpy as np
-import os
-import time
-
-# Set environment variable to control threading
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['NUMEXPR_NUM_THREADS'] = '1'
-os.environ['OMP_NUM_THREADS'] = '1'
-
-while True:
-    a = np.random.normal(size=($matrix_size, $matrix_size))
-    b = np.random.normal(size=($matrix_size, $matrix_size))
-    c = np.matmul(a, b)
-    time.sleep($sleep_time)
-EOF
-        ) &
+        (while true; do
+            # Start time for this cycle
+            local start=$(date +%s%N)
+            local end=$((start + work_time * 1000))
+            
+            # Busy loop for work_time microseconds
+            while [ $(date +%s%N) -lt $end ]; do
+                local x=0
+                for ((j=0; j<1000; j++)); do
+                    x=$((x + j))
+                done
+            done
+            
+            # Sleep for sleep_time microseconds
+            if [ $sleep_time -gt 0 ]; then
+                sleep $(echo "scale=6; $sleep_time/800000" | bc)
+            fi
+        done) &
         CPU_PIDS+=($!)
     done
 }
@@ -200,16 +197,18 @@ handle_user_input() {
         
         case $cmd in
             cpu)
-                if [[ ${CPU_PARAMS[$arg1]+_} ]]; then
+                if [[ $arg1 =~ ^[0-9]+$ ]] && [ $arg1 -ge 0 ] && [ $arg1 -le 100 ]; then
                     CURRENT_CPU_LEVEL=$arg1
+                    CURRENT_GPU_LEVEL=0
                     echo "CPU level set to: $arg1%"
                 else
-                    echo "Invalid CPU level. Use: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100"
+                    echo "Invalid CPU level. Use: 0-100"
                 fi
                 ;;
             gpu)
                 if [[ ${GPU_PARAMS[$arg1]+_} ]]; then
                     CURRENT_GPU_LEVEL=$arg1
+                    CURRENT_CPU_LEVEL=0
                     echo "GPU level set to: $arg1%"
                 else
                     echo "Invalid GPU level. Use: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100"
@@ -286,10 +285,14 @@ handle_user_input() {
                 echo "Duration: $DURATION seconds"
                 echo "Stress time: $STRESS_TIME seconds"
                 echo "Rest time: $REST_TIME seconds"
+                if [ $CURRENT_CPU_LEVEL -gt 0 ]; then
+                    current_usage=$(get_cpu_usage)
+                    echo "Current CPU Usage: ${current_usage}%"
+                fi
                 ;;
             help)
                 echo "Commands:"
-                echo "  cpu <level>      - Set CPU level (10-100, step 10)"
+                echo "  cpu <level>      - Set CPU level (0-100)"
                 echo "  gpu <level>      - Set GPU level (10-100, step 10)"
                 echo "  mode <type>      - Set mode (continuous, interval, random)"
                 echo "  duration <N>     - Set total duration in seconds"
