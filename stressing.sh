@@ -149,8 +149,8 @@ run_random_mode() {
     local device=$1
     local level=$2
     local total_duration=$3
-    local min_interval=60
-    local max_interval=300
+    local min_interval=5
+    local max_interval=30
     
     echo "Starting random mode for $total_duration seconds"
     local start_time=$(date +%s)
