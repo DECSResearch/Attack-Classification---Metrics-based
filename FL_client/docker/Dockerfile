@@ -25,3 +25,6 @@ WORKDIR /app
 
 # Keep the container running
 CMD ["tail", "-f", "/dev/null"]
+
+
+#ulimit -s unlimited

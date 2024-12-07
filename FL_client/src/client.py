@@ -17,6 +17,17 @@ import matplotlib.pyplot as plt
 
 warnings.simplefilter('ignore')
 
+# Limit TensorFlow memory usage to 1 GB (adjust as needed)
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        tf.config.experimental.set_virtual_device_configuration(
+            gpus[0],
+            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])  # 1 GB
+    except RuntimeError as e:
+        print(e)
+
+
 # Argument Parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--ip', help='Provide the IP address', default="0.0.0.0", required=False)
@@ -98,7 +109,7 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
 
         return np.array(x_values), np.array(y_values)
 
-    trainX, trainY = to_sequence(
+    X_train, y_train = to_sequence(
         train[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
                'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
                'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
@@ -108,7 +119,7 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
         seq_size
     )
 
-    testX, testY = to_sequence(
+    X_test, y_test = to_sequence(
         test[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
               'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
               'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
@@ -118,20 +129,20 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
         seq_size
     )
 
-    print("train X shape", trainX.shape)
-    print("train Y shape", trainY.shape)
-    print("test X shape", testX.shape)
-    print("test Y shape", testY.shape)
+    print("train X shape", X_train.shape)
+    print("train Y shape", y_train.shape)
+    print("test X shape", X_test.shape)
+    print("test Y shape", y_test.shape)
 
-    return trainX, trainY, testX, testY
+    return X_train, y_train, X_test, y_test
 
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
-        self.trainX = None
-        self.trainY = None
-        self.testX = None
-        self.testY = None
+        self.X_train = None
+        self.y_train = None
+        self.X_test = None
+        self.y_test = None
         self.model = None
 
     def get_parameters(self, config):
@@ -139,14 +150,14 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         model.set_weights(parameters)
-        r= self.model.fit(self.trainX, self.trainY, epochs=5, batch_size=128, validation_split=0.2, verbose=1)
+        r= self.model.fit(self.X_train, self.y_train, epochs=5, batch_size=128, validation_split=0.2, verbose=1)
         hist = r.history
         print("Fit history : ", hist)
-        return self.model.get_weights(), len(self.trainX), {}
+        return self.model.get_weights(), len(self.X_train), {}
 
     def evaluate(self, parameters, config):
         model.set_weights(parameters)
-        eval_loss, eval_mape = self.model.evaluate(testX, testY)
+        eval_loss, eval_mape = self.model.evaluate(X_test, y_test)
 
         temp_loss.append(eval_loss)
         temp_mape.append(eval_mape)
@@ -159,26 +170,26 @@ if __name__ == "__main__":
     # Load Dataset
     df = load_dataset()
     # Preprocess/split Dataset
-    trainX, trainY, testX, testY = preprocess_dataset(df)
+    X_train, y_train, X_test, y_test = preprocess_dataset(df)
 
     #LSTM Model with Tensorflow GPU working
     model = Sequential()
-    model.add( LSTM(128, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True))
+    model.add( LSTM(128, activation='tanh', recurrent_activation='sigmoid', input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True))
     model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
-    model.add(RepeatVector(trainX.shape[1]))
+    model.add(RepeatVector(X_train.shape[1]))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-    model.add(TimeDistributed(Dense(trainX.shape[2])))
+    model.add(TimeDistributed(Dense(X_train.shape[2])))
     model.compile(optimizer='adam', loss='mae', metrics=["mape"])
 
     # Create Flower Client
     flower_client = FlowerClient()
-    flower_client.X_train = trainX
-    flower_client.y_train = trainY
-    flower_client.X_test = testX
-    flower_client.y_test = testY
+    flower_client.X_train = X_train
+    flower_client.y_train = y_train
+    flower_client.X_test = X_test
+    flower_client.y_test = y_test
     flower_client.model = model
 
     # Start Client
@@ -190,8 +201,8 @@ if __name__ == "__main__":
 ################ CALCULATING THE MAE AND MAPE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
     # Calculate MAE for training prediction
-    trainPredict = model.predict(trainX)
-    trainMAE = np.mean(np.abs(trainPredict - trainX), axis=1)
+    trainPredict = model.predict(X_train)
+    trainMAE = np.mean(np.abs(trainPredict - X_train), axis=1)
     # Print the mean of test MAE
     print("Mean of Train MAE:", np.mean(trainMAE))
 
@@ -205,7 +216,7 @@ if __name__ == "__main__":
     # plt.close()
 
     # Calculate MAPE for each sample
-    trainActual = trainX
+    trainActual = X_train
     trainMAPE = np.mean(np.abs(trainPredict - trainActual) / trainActual, axis=1) * 100
     # Print the mean of MAPE
     print("Mean of Train MAPE:", np.mean(trainMAPE))
@@ -244,8 +255,8 @@ if __name__ == "__main__":
     # plt.close()
 
     # Calculate reconstruction loss (MAE) for testing dataset
-    testPredict = model.predict(testX)
-    testMAE = np.mean(np.abs(testPredict - testX), axis=1)
+    testPredict = model.predict(X_test)
+    testMAE = np.mean(np.abs(testPredict - X_test), axis=1)
 
     # Print the mean of test MAE
     print("Mean of Test MAE:", np.mean(testMAE))
@@ -260,7 +271,7 @@ if __name__ == "__main__":
     # plt.close()
 
     # Calculate MAPE for each sample
-    testActual = testX  # Assuming trainX contains the actual values
+    testActual = X_test  # Assuming trainX contains the actual values
     testMAPE = np.mean(np.abs(testPredict - testActual) / testActual, axis=1) * 100
 
     # Print the mean of MAPE
