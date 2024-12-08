@@ -50,30 +50,74 @@ random.seed(42)
 tf.random.set_seed(42)
 
 # Load Dataset Function
+# def load_dataset():
+#     folder_path = os.path.join('.', 'Train_data', FOLDER_LOC)
+#     for filename in os.listdir(folder_path):
+#         if filename.endswith('.csv'):
+#             file_path = os.path.join(folder_path, filename)
+#             dataframe = pd.read_csv(file_path)
+#             dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp']) # Convert 'datetimestamp' column to datetime
+#             df = dataframe[['timestamp', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_gpu_usage_percent',
+#                             'jetson_board_temperature_celsius', 'jetson_vdd_in_mw', 'jetson_cpu_usage_percent',
+#                             'jetson_ram_usage_mb', 'node_network_receive_bytes_total_KBps',
+#                             'node_network_transmit_bytes_total_KBps']]
+#             df.set_index('timestamp', inplace=True)  # Set 'datetimestamp' as index
+#             df.replace(0, 0.01, inplace=True)
+#             # Count the number of rows where zero values were replaced with 0.01
+#             num_rows_with_zero_replaced = len(df[(df == 0.01).any(axis=1)])
+#             print(f"Number of rows where zero values were replaced: {num_rows_with_zero_replaced}")
+#
+#             # check if there are any remaining zero values
+#             remaining_zeros = df[(df == 0).any(axis=1)]
+#             print(f"Remaining rows with zero values: {len(remaining_zeros)}")
+#     print("First few rows of the DataFrame:")
+#     print(df.head())
+#     print("Column names:")
+#     print(df.columns)
+#     return df
+
 def load_dataset():
     folder_path = os.path.join('.', 'Train_data', FOLDER_LOC)
+
     for filename in os.listdir(folder_path):
         if filename.endswith('.csv'):
             file_path = os.path.join(folder_path, filename)
             dataframe = pd.read_csv(file_path)
-            dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp']) # Convert 'datetimestamp' column to datetime
+
+            # Convert 'timestamp' column to datetime
+            dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp'])
+
+            # Select required columns
             df = dataframe[['timestamp', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_gpu_usage_percent',
                             'jetson_board_temperature_celsius', 'jetson_vdd_in_mw', 'jetson_cpu_usage_percent',
                             'jetson_ram_usage_mb', 'node_network_receive_bytes_total_KBps',
                             'node_network_transmit_bytes_total_KBps']]
-            df.set_index('timestamp', inplace=True)  # Set 'datetimestamp' as index
-            df.replace(0, 0.01, inplace=True)
-            # Count the number of rows where zero values were replaced with 0.01
-            num_rows_with_zero_replaced = len(df[(df == 0.01).any(axis=1)])
-            print(f"Number of rows where zero values were replaced: {num_rows_with_zero_replaced}")
 
-            # check if there are any remaining zero values
+            # Set 'timestamp' as the index
+            df.set_index('timestamp', inplace=True)
+
+            # Replace zero values with 0.01
+            df.replace(0, 0.01, inplace=True)
+
+            # Count the number of rows where zero values were replaced
+            num_rows_with_zero_replaced = len(df[(df == 0.01).any(axis=1)])
+            print(f"Number of rows where zero values were replaced in {filename}: {num_rows_with_zero_replaced}")
+
+            # Check if there are any remaining zero values
             remaining_zeros = df[(df == 0).any(axis=1)]
-            print(f"Remaining rows with zero values: {len(remaining_zeros)}")
-    print("First few rows of the DataFrame:")
+            print(f"Remaining rows with zero values in {filename}: {len(remaining_zeros)}")
+
+            # Keep only rows with timestamps every 10 seconds
+            df = df[df.index.second % 5 == 0]
+
+            # Stop processing after the first file for now
+            break  # Remove this line if you want to process all files
+
+    print("First few rows of the processed DataFrame:")
     print(df.head())
     print("Column names:")
     print(df.columns)
+
     return df
 
 
