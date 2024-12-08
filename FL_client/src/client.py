@@ -289,6 +289,13 @@ if __name__ == "__main__":
     plt.savefig('train_mape_histogram.png')
     plt.close()
 
+    thresholds = []
+    percentile = 95  # Set the desired percentile (e.g., 95th)
+    for i in range(trainMAPE.shape[1]):
+        threshold = np.percentile(trainMAPE[:, i], percentile)
+        thresholds.append(threshold)
+        print(f"Training Feature: {feature_names[i]}, Threshold ({percentile} Percentile): {threshold:.2f}")
+
     # # Plot
     # plt.figure(figsize=(8, 6))
     # plt.hist(trainMAPE, bins=30)
@@ -333,6 +340,15 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig('test_mape_histogram.png')
     plt.close()
+
+    # Percentile Method to define anomaly thresholds
+    thresholds = []
+    percentile = 95
+
+    for i in range(testMAPE.shape[1]):
+        threshold = np.percentile(testMAPE[:, i], percentile)
+        thresholds.append(threshold)
+        print(f"Test Feature: {feature_names[i]}, Threshold ({percentile} Percentile): {threshold:.2f}")
 
     # # Plot histogram of MAPE
     # plt.figure(figsize=(8, 6))
