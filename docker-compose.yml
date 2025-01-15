@@ -1,0 +1,13 @@
+version: '2.3'
+services:
+  fl-client:
+    image: 320158lcc/openfl-client-1:latest
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    container_name: openfl-client-1
+    networks:
+      - federated-net
+networks:
+  federated-net:
+    driver: bridge
