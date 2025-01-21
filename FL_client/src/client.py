@@ -1,19 +1,40 @@
 # Muhammad Hamza Karim
 
-import os
+# import os
+# import joblib
+# import argparse
+# import flwr as fl
+# import numpy as np
+# import pandas as pd
+# import random
+# import tensorflow as tf
+# import keras as ke
+# from typing import Tuple
+# import warnings
+# from keras import Sequential
+# from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
+# import matplotlib.pyplot as plt
+
+# Import Libraries
+
+import time
 import joblib
-import argparse
-import flwr as fl
+import random
 import numpy as np
 import pandas as pd
-import random
+import seaborn as sns
 import tensorflow as tf
-import keras as ke
-from typing import Tuple
-import warnings
-from keras import Sequential
-from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
-import matplotlib.pyplot as plt
+from keras.models import Model
+from keras.models import Sequential
+from matplotlib import pyplot as plt
+from tensorflow.keras import backend as K
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from keras.layers import LSTM, Input, Dropout, Dense, RepeatVector, TimeDistributed
+from tensorflow.keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score
 
 warnings.simplefilter('ignore')
 
@@ -49,33 +70,6 @@ np.random.seed(42)
 random.seed(42)
 tf.random.set_seed(42)
 
-# Load Dataset Function
-# def load_dataset():
-#     folder_path = os.path.join('.', 'Train_data', FOLDER_LOC)
-#     for filename in os.listdir(folder_path):
-#         if filename.endswith('.csv'):
-#             file_path = os.path.join(folder_path, filename)
-#             dataframe = pd.read_csv(file_path)
-#             dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp']) # Convert 'datetimestamp' column to datetime
-#             df = dataframe[['timestamp', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_gpu_usage_percent',
-#                             'jetson_board_temperature_celsius', 'jetson_vdd_in_mw', 'jetson_cpu_usage_percent',
-#                             'jetson_ram_usage_mb', 'node_network_receive_bytes_total_KBps',
-#                             'node_network_transmit_bytes_total_KBps']]
-#             df.set_index('timestamp', inplace=True)  # Set 'datetimestamp' as index
-#             df.replace(0, 0.01, inplace=True)
-#             # Count the number of rows where zero values were replaced with 0.01
-#             num_rows_with_zero_replaced = len(df[(df == 0.01).any(axis=1)])
-#             print(f"Number of rows where zero values were replaced: {num_rows_with_zero_replaced}")
-#
-#             # check if there are any remaining zero values
-#             remaining_zeros = df[(df == 0).any(axis=1)]
-#             print(f"Remaining rows with zero values: {len(remaining_zeros)}")
-#     print("First few rows of the DataFrame:")
-#     print(df.head())
-#     print("Column names:")
-#     print(df.columns)
-#     return df
-
 def load_dataset():
     folder_path = os.path.join('.', 'Train_data', FOLDER_LOC)
 
@@ -88,10 +82,8 @@ def load_dataset():
             dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp'])
 
             # Select required columns
-            df = dataframe[['timestamp', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_gpu_usage_percent',
-                            'jetson_board_temperature_celsius', 'jetson_vdd_in_mw', 'jetson_cpu_usage_percent',
-                            'jetson_ram_usage_mb', 'node_network_receive_bytes_total_KBps',
-                            'node_network_transmit_bytes_total_KBps']]
+            df = dataframe[['timestamp', 'jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
+                            'jetson_cpu_usage_percent', 'jetson_ram_usage_mb']]
 
             # Set 'timestamp' as the index
             df.set_index('timestamp', inplace=True)
@@ -110,9 +102,6 @@ def load_dataset():
             # Keep only rows with timestamps every 10 seconds
             df = df[df.index.second % 5 == 0]
 
-            # Stop processing after the first file for now
-            break  # Remove this line if you want to process all files
-
     print("First few rows of the processed DataFrame:")
     print(df.head())
     print("Column names:")
@@ -126,20 +115,26 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
     # Print start and end date
     print("start date of dataset is :", df.index.min())
     print("end date of dataset is :", df.index.max())
-    # Train and Test Split
-    split_index = int(len(df) * 0.8)
-    train = df.iloc[:split_index]
-    test = df.iloc[split_index:]
 
-    # Print the start and end dates for each split
+    # Scaling the dataset
+    df_to_scale = df[['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius', 'jetson_cpu_usage_percent',
+                      'jetson_ram_usage_mb']]
+
+    scaler_standard = StandardScaler()
+
+    df_standard_scaled = pd.DataFrame(scaler_standard.fit_transform(df_to_scale), columns=df_to_scale.columns,
+                                      index=df.index)
+
+
+    train = df_standard_scaled  # Use the entire dataset as training data
+
+    # Print the start and end dates for the dataset
     print("Train start date:", train.index.min())
     print("Train end date:", train.index.max())
-    print("Test start date:", test.index.min())
-    print("Test end date:", test.index.max())
     print("Train set shape:", train.shape)
-    print("Test set shape:", test.shape)
 
-    seq_size = 40  # Number of time steps to look back
+    # Sequencing
+    seq_size = 20  # Number of time steps to look back
 
     # larger sequence size (look further back) may improve forecasting
 
@@ -149,44 +144,27 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
 
         for i in range(len(x) - seq_size):
             x_values.append(x.iloc[i:(i + seq_size)].values)
-            y_values.append(y.iloc[i:(i + seq_size)].values)  # Adjust this line for correct target shape
+            y_values.append(y.iloc[i + seq_size])
 
         return np.array(x_values), np.array(y_values)
 
-    X_train, y_train = to_sequence(
-        train[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
-               'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
-               'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
-        train[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
-               'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
-               'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
-        seq_size
-    )
+    trainX, trainY = to_sequence(train[['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
+                                        'jetson_cpu_usage_percent', 'jetson_ram_usage_mb']], train[
+                                     ['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
+                                      'jetson_cpu_usage_percent', 'jetson_ram_usage_mb']], seq_size)
 
-    X_test, y_test = to_sequence(
-        test[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
-              'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
-              'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
-        test[['jetson_vdd_cpu_gpu_cv_mw', 'jetson_vdd_cpu_gpu_cv_mw', 'jetson_board_temperature_celsius',
-              'jetson_vdd_in_mw', 'jetson_cpu_usage_percent', 'jetson_ram_usage_mb',
-              'node_network_receive_bytes_total_KBps', 'node_network_transmit_bytes_total_KBps']],
-        seq_size
-    )
+    print("train X shape", trainX.shape)
+    print("train Y shape", trainY.shape)
 
-    print("train X shape", X_train.shape)
-    print("train Y shape", y_train.shape)
-    print("test X shape", X_test.shape)
-    print("test Y shape", y_test.shape)
-
-    return X_train, y_train, X_test, y_test
+    return X_train, y_train
 
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
         self.X_train = None
         self.y_train = None
-        self.X_test = None
-        self.y_test = None
+#        self.X_test = None
+#        self.y_test = None
         self.model = None
 
     def get_parameters(self, config):
@@ -199,48 +177,66 @@ class FlowerClient(fl.client.NumPyClient):
         print("Fit history : ", hist)
         return self.model.get_weights(), len(self.X_train), {}
 
-    def evaluate(self, parameters, config):
-        model.set_weights(parameters)
-        eval_loss, eval_mape = self.model.evaluate(X_test, y_test)
-
-        temp_loss.append(eval_loss)
-        temp_mape.append(eval_mape)
-
-        print(f"Eval Loss: {eval_loss} || Eval MAPE: {eval_mape}")
-        return eval_loss, len(X_test), {"mape": eval_mape}
+# We don't need evaluation as we do not have test data
+    # def evaluate(self, parameters, config):
+    #     model.set_weights(parameters)
+    #     eval_loss, eval_mape = self.model.evaluate(X_test, y_test)
+    #
+    #     temp_loss.append(eval_loss)
+    #     temp_mape.append(eval_mape)
+    #
+    #     print(f"Eval Loss: {eval_loss} || Eval MAPE: {eval_mape}")
+    #     return eval_loss, len(X_test), {"mape": eval_mape}
 
 # Main Function
 if __name__ == "__main__":
     # Load Dataset
     df = load_dataset()
     # Preprocess/split Dataset
-    X_train, y_train, X_test, y_test = preprocess_dataset(df)
+   # X_train, y_train, X_test, y_test = preprocess_dataset(df)
+    X_train, y_train = preprocess_dataset(df)
 
-    #LSTM Model with Tensorflow GPU working
+
+    # Define RMSE function
+    def rmse(y_true, y_pred):
+        return K.sqrt(K.mean(K.square(y_true - y_pred)))
+
+    # Define the model
+    # LSTM
     model = Sequential()
-    model.add( LSTM(128, activation='tanh', recurrent_activation='sigmoid', input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True))
-    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
+    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
-    model.add(RepeatVector(X_train.shape[1]))
+    model.add(RepeatVector(trainX.shape[1]))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-    model.add(LSTM(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-    model.add(TimeDistributed(Dense(X_train.shape[2])))
-    model.compile(optimizer='adam', loss='mae', metrics=["mape"])
+    model.add(TimeDistributed(Dense(trainX.shape[2])))
+
+    # # BiLSTM
+    # model = Sequential()
+    # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True)))
+    # # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
+    # model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False)))
+    # model.add(RepeatVector(trainX.shape[1]))
+    # # model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
+    # model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
+    # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
+    # model.add(TimeDistributed(Dense(trainX.shape[2])))
+
+    model.compile(optimizer= Adam(learning_rate=0.0001), loss='mse', metrics=["rmse"])
 
     # Create Flower Client
     flower_client = FlowerClient()
     flower_client.X_train = X_train
     flower_client.y_train = y_train
-    flower_client.X_test = X_test
-    flower_client.y_test = y_test
+ #   flower_client.X_test = X_test
+ #   flower_client.y_test = y_test
     flower_client.model = model
 
     # Start Client
     fl.client.start_numpy_client(server_address=SERVER_ADDR, client=flower_client)
 
     # Save the trained model
-    joblib.dump(model, 'trained_model_LSTM.joblib')
+    joblib.dump(model, 'FL_LSTM.joblib')
 
 ################ CALCULATING THE MAE AND MAPE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
