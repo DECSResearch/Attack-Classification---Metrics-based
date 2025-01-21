@@ -238,121 +238,55 @@ if __name__ == "__main__":
     # Save the trained model
     joblib.dump(model, 'FL_LSTM.joblib')
 
-################ CALCULATING THE MAE AND MAPE FOR TRAIN AND TEST FOR THRESHOLDING ###################
+################ CALCULATING THE loss AND RMSE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
-    # Calculate MAE for training prediction
-    trainPredict = model.predict(X_train)
-    trainMAE = np.mean(np.abs(trainPredict - X_train), axis=1)
-    # Print the mean of test MAE
-    print("Mean of Train MAE:", np.mean(trainMAE))
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
 
-    # # Plot
-    # plt.figure(figsize=(8, 6))
-    # plt.hist(trainMAE, bins=30)
-    # plt.xlabel('Mean Absolute Error (MAE)')
-    # plt.ylabel('Frequency')
-    # plt.title('Histogram of Mean Absolute Error (MAE) in Training Prediction')
-    # plt.savefig('train_mae_histogram.png')
-    # plt.close()
+    trainRMSE_mean = np.mean(trainRMSE, axis=1)
 
-    # Calculate MAPE for each sample
-    trainActual = X_train
-    trainMAPE = np.mean(np.abs(trainPredict - trainActual) / trainActual, axis=1) * 100
-    # Print the mean of MAPE
-    print("Mean of Train MAPE:", np.mean(trainMAPE))
+    # Print the shape and mean of trainRMSE_mean
+    print("Shape of trainRMSE_mean:", trainRMSE_mean.shape)
+    print("Mean of trainRMSE_mean:", np.mean(trainRMSE_mean))
 
-    feature_names = [
-        'jetson_vdd_cpu_gpu_cv_mw',
-        'jetson_gpu_usage_percent',
-        'jetson_board_temperature_celsius',
-        'jetson_vdd_in_mw',
-        'jetson_cpu_usage_percent',
-        'jetson_ram_usage_mb',
-        'node_network_receive_bytes_total_KBps',
-        'node_network_transmit_bytes_total_KBps'
-    ]
+    # Compute the 95th and 99.5th percentiles
+    threshold_95 = np.percentile(trainRMSE_mean, 95)
+    threshold_99 = np.percentile(trainRMSE_mean, 99.5)
+    print("95th Percentile Threshold:", threshold_95)
+    print("99.5th Percentile Threshold:", threshold_99)
 
-    # Individual histograms for MAPE with feature names
-    plt.figure(figsize=(15, 10))
-    for i in range(trainMAPE.shape[1]):
-        plt.subplot(4, 2, i + 1)  # Create a grid layout (4 rows, 2 columns)
-        plt.hist(trainMAPE[:, i], bins=30, alpha=0.7, color='green')
-        plt.title(f'MAPE for {feature_names[i]}')
-        plt.xlabel('Mean Absolute Percentage Error (MAPE)')
-        plt.ylabel('Frequency')
+    # Plot the distribution of the mean RMSE values
+    plt.figure(figsize=(12, 6))
+    sns.histplot(trainRMSE_mean, bins=50, color='royalblue', kde=True, label='Mean RMSE')
 
+    # Highlight the threshold with a vertical line
+    plt.axvline(threshold_99, color='red', linestyle='--', linewidth=2, label='Threshold')
+
+    # Annotate the threshold value on the plot
+    plt.text(threshold_99, plt.gca().get_ylim()[1] * 0.9, f'{threshold_99:.3f}',
+             color='red', fontsize=12, fontweight='bold', ha='left', va='bottom')
+
+    # Customize x-axis ticks for better readability
+    x_ticks = np.arange(0, 1.1, 0.1)  # Set ticks every 0.1 instead of 0.05
+    plt.xticks(x_ticks, fontsize=12)
+    plt.yticks(fontsize=12)
+
+    # Add title and labels with improved fonts
+    plt.title('Distribution of Mean Train RMSE', fontsize=18, fontweight='bold')
+    plt.xlabel('Mean RMSE', fontsize=14)
+    plt.ylabel('Frequency', fontsize=14)
+
+    # Add a grid for better readability
+    plt.grid(True, linestyle='--', alpha=0.6)
+
+    # Add a legend with improved styling
+    plt.legend(fontsize=12, loc='upper right', frameon=True, shadow=True)
+
+    # Tight layout for a clean figure
     plt.tight_layout()
-    plt.savefig('train_mape_histogram.png')
+    plt.savefig('Distribution of Mean Train RMSE.png')
     plt.close()
-
-    thresholds = []
-    percentile = 95  # Set the desired percentile (e.g., 95th)
-    for i in range(trainMAPE.shape[1]):
-        threshold = np.percentile(trainMAPE[:, i], percentile)
-        thresholds.append(threshold)
-        print(f"Training Feature: {feature_names[i]}, Threshold ({percentile} Percentile): {threshold:.2f}")
-
-    # # Plot
-    # plt.figure(figsize=(8, 6))
-    # plt.hist(trainMAPE, bins=30)
-    # plt.xlabel('Mean Absolute Percentage Error (MAPE)')
-    # plt.ylabel('Frequency')
-    # plt.title('Histogram of Mean Absolute Percentage Error (MAPE) in Training Prediction')
-    # plt.savefig('train_mape_histogram.png')
-    # plt.close()
-
-    # Calculate reconstruction loss (MAE) for testing dataset
-    testPredict = model.predict(X_test)
-    testMAE = np.mean(np.abs(testPredict - X_test), axis=1)
-
-    # Print the mean of test MAE
-    print("Mean of Test MAE:", np.mean(testMAE))
-
-    # # Plot histogram
-    # plt.figure(figsize=(8, 6))
-    # plt.hist(testMAE, bins=30)
-    # plt.xlabel('Test MAE')
-    # plt.ylabel('Frequency')
-    # plt.title('Histogram of Mean Absolute Error (MAE) in Test Prediction')
-    # plt.savefig('test_mae_histogram.png')
-    # plt.close()
-
-    # Calculate MAPE for each sample
-    testActual = X_test  # Assuming trainX contains the actual values
-    testMAPE = np.mean(np.abs(testPredict - testActual) / testActual, axis=1) * 100
-
-    # Print the mean of MAPE
-    print("Mean of Test MAPE:", np.mean(testMAPE))
-
-    # Individual histograms for MAPE with feature names
-    plt.figure(figsize=(15, 10))
-    for i in range(testMAPE.shape[1]):
-        plt.subplot(4, 2, i + 1)  # Create a grid layout (4 rows, 2 columns)
-        plt.hist(testMAPE[:, i], bins=30, alpha=0.7, color='green')
-        plt.title(f'MAPE for {feature_names[i]}')
-        plt.xlabel('Mean Absolute Percentage Error (MAPE)')
-        plt.ylabel('Frequency')
-
-    plt.tight_layout()
-    plt.savefig('test_mape_histogram.png')
-    plt.close()
-
-    # Percentile Method to define anomaly thresholds
-    thresholds = []
-    percentile = 95
-
-    for i in range(testMAPE.shape[1]):
-        threshold = np.percentile(testMAPE[:, i], percentile)
-        thresholds.append(threshold)
-        print(f"Test Feature: {feature_names[i]}, Threshold ({percentile} Percentile): {threshold:.2f}")
-
-    # # Plot histogram of MAPE
-    # plt.figure(figsize=(8, 6))
-    # plt.hist(testMAPE, bins=30)
-    # plt.xlabel('Mean Absolute Percentage Error (MAPE)')
-    # plt.ylabel('Frequency')
-    # plt.title('Histogram of Mean Absolute Percentage Error (MAPE) in Test Prediction')
-    # plt.savefig('test_mape_histogram.png')
-    # plt.close()
+    # plt.show()
 
 ####################################################################################################
