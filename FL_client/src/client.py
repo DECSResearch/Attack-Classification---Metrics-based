@@ -15,6 +15,7 @@ from typing import Tuple
 from keras import Sequential
 import matplotlib.pyplot as plt
 from keras.optimizers import Adam
+from tensorflow.keras import backend as K
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score
@@ -224,15 +225,15 @@ if __name__ == "__main__":
 ################ CALCULATING THE loss AND RMSE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
     # Calculate MAE MSE & RMSE for training prediction
-    trainPredict = model.predict(trainX)
+    trainPredict = model.predict(X_train)
 
-    trainMAE = np.mean(np.abs(trainPredict - trainX), axis=1)
+    trainMAE = np.mean(np.abs(trainPredict - X_train), axis=1)
     # Print the mean of test MAE
     print("Mean of Train MAE:", np.mean(trainMAE))
     print(trainMAE.shape)
 
     # Calculate MSE for training predictions
-    trainMSE = np.mean(np.square(trainPredict - trainX), axis=1)
+    trainMSE = np.mean(np.square(trainPredict - X_train), axis=1)
 
     # Calculate RMSE for training predictions
     trainRMSE = np.sqrt(trainMSE)
