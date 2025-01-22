@@ -1,40 +1,24 @@
 # Muhammad Hamza Karim
 
-# import os
-# import joblib
-# import argparse
-# import flwr as fl
-# import numpy as np
-# import pandas as pd
-# import random
-# import tensorflow as tf
-# import keras as ke
-# from typing import Tuple
-# import warnings
-# from keras import Sequential
-# from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
-# import matplotlib.pyplot as plt
-
-# Import Libraries
-
-import time
+import os
 import joblib
 import random
+import warnings
+import argparse
+import flwr as fl
 import numpy as np
+import keras as ke
 import pandas as pd
 import seaborn as sns
 import tensorflow as tf
-from keras.models import Model
-from keras.models import Sequential
-from matplotlib import pyplot as plt
-from tensorflow.keras import backend as K
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.callbacks import EarlyStopping
+from typing import Tuple
+from keras import Sequential
+import matplotlib.pyplot as plt
+from keras.optimizers import Adam
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from keras.layers import LSTM, Input, Dropout, Dense, RepeatVector, TimeDistributed
-from tensorflow.keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
+from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Bidirectional
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score
+
 
 warnings.simplefilter('ignore')
 
@@ -62,8 +46,12 @@ SERVER_ADDR = f"{args.ip}:{args.port}"
 FOLDER_LOC = args.folder
 CLIENT_ID = args.id
 
-temp_loss = []
-temp_mape = []
+# Define RMSE function
+def rmse(y_true, y_pred):
+    return K.sqrt(K.mean(K.square(y_true - y_pred)))
+
+#temp_loss = []
+#temp_mape = []
 
 # Set random seed for reproducibility
 np.random.seed(42)
@@ -148,13 +136,13 @@ def preprocess_dataset(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.nda
 
         return np.array(x_values), np.array(y_values)
 
-    trainX, trainY = to_sequence(train[['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
-                                        'jetson_cpu_usage_percent', 'jetson_ram_usage_mb']], train[
-                                     ['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
+    X_train, y_train = to_sequence(train[['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
+                                        'jetson_cpu_usage_percent', 'jetson_ram_usage_mb']],
+                                   train[['jetson_gpu_usage_percent', 'jetson_board_temperature_celsius',
                                       'jetson_cpu_usage_percent', 'jetson_ram_usage_mb']], seq_size)
 
-    print("train X shape", trainX.shape)
-    print("train Y shape", trainY.shape)
+    print("train X shape", X_train.shape)
+    print("train Y shape", y_train.shape)
 
     return X_train, y_train
 
@@ -163,8 +151,8 @@ class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
         self.X_train = None
         self.y_train = None
-#        self.X_test = None
-#        self.y_test = None
+   #     self.X_test = None
+   #     self.y_test = None
         self.model = None
 
     def get_parameters(self, config):
@@ -172,21 +160,21 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         model.set_weights(parameters)
-        r= self.model.fit(self.X_train, self.y_train, epochs=10, batch_size=128, validation_split=0.2, verbose=1)
+        r= self.model.fit(self.X_train, self.X_train, epochs=10, batch_size=128, validation_split=0.2, verbose=1)
         hist = r.history
         print("Fit history : ", hist)
         return self.model.get_weights(), len(self.X_train), {}
 
 # We don't need evaluation as we do not have test data
-    # def evaluate(self, parameters, config):
-    #     model.set_weights(parameters)
-    #     eval_loss, eval_mape = self.model.evaluate(X_test, y_test)
-    #
-    #     temp_loss.append(eval_loss)
-    #     temp_mape.append(eval_mape)
-    #
-    #     print(f"Eval Loss: {eval_loss} || Eval MAPE: {eval_mape}")
-    #     return eval_loss, len(X_test), {"mape": eval_mape}
+#     def evaluate(self, parameters, config):
+#         model.set_weights(parameters)
+#         eval_loss, eval_mape = self.model.evaluate(X_train, y_train)
+#
+#         temp_loss.append(eval_loss)
+#         temp_mape.append(eval_mape)
+#
+#         print(f"Eval Loss: {eval_loss} || Eval RMSE: {eval_rmse}")
+#         return eval_loss, len(X_test), {"rmse": eval_rmse}
 
 # Main Function
 if __name__ == "__main__":
@@ -196,20 +184,15 @@ if __name__ == "__main__":
    # X_train, y_train, X_test, y_test = preprocess_dataset(df)
     X_train, y_train = preprocess_dataset(df)
 
-
-    # Define RMSE function
-    def rmse(y_true, y_pred):
-        return K.sqrt(K.mean(K.square(y_true - y_pred)))
-
     # Define the model
     # LSTM
     model = Sequential()
-    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True))
+    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
-    model.add(RepeatVector(trainX.shape[1]))
+    model.add(RepeatVector(X_train.shape[1]))
     model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
     model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-    model.add(TimeDistributed(Dense(trainX.shape[2])))
+    model.add(TimeDistributed(Dense(X_train.shape[2])))
 
     # # BiLSTM
     # model = Sequential()
@@ -222,7 +205,7 @@ if __name__ == "__main__":
     # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
     # model.add(TimeDistributed(Dense(trainX.shape[2])))
 
-    model.compile(optimizer= Adam(learning_rate=0.0001), loss='mse', metrics=["rmse"])
+    model.compile(optimizer=Adam(learning_rate=0.0001), loss='mse', metrics=[rmse])
 
     # Create Flower Client
     flower_client = FlowerClient()
@@ -236,13 +219,29 @@ if __name__ == "__main__":
     fl.client.start_numpy_client(server_address=SERVER_ADDR, client=flower_client)
 
     # Save the trained model
-    joblib.dump(model, 'FL_LSTM.joblib')
+    joblib.dump(model, 'NFL-LSTM.joblib')
 
 ################ CALCULATING THE loss AND RMSE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
+    # Calculate MAE MSE & RMSE for training prediction
+    trainPredict = model.predict(trainX)
+
+    trainMAE = np.mean(np.abs(trainPredict - trainX), axis=1)
+    # Print the mean of test MAE
+    print("Mean of Train MAE:", np.mean(trainMAE))
+    print(trainMAE.shape)
+
+    # Calculate MSE for training predictions
+    trainMSE = np.mean(np.square(trainPredict - trainX), axis=1)
+
+    # Calculate RMSE for training predictions
+    trainRMSE = np.sqrt(trainMSE)
+
+    # Print the mean of Train MSE and Train RMSE
+    print("Mean of Train MSE:", np.mean(trainMSE))
+    print("Mean of Train RMSE:", np.mean(trainRMSE))
+    print("Shape of trainMSE:", trainMSE.shape)
+    print("Shape of trainRMSE:", trainRMSE.shape)
 
     trainRMSE_mean = np.mean(trainRMSE, axis=1)
 
@@ -259,33 +258,20 @@ if __name__ == "__main__":
     # Plot the distribution of the mean RMSE values
     plt.figure(figsize=(12, 6))
     sns.histplot(trainRMSE_mean, bins=50, color='royalblue', kde=True, label='Mean RMSE')
-
-    # Highlight the threshold with a vertical line
     plt.axvline(threshold_99, color='red', linestyle='--', linewidth=2, label='Threshold')
-
     # Annotate the threshold value on the plot
     plt.text(threshold_99, plt.gca().get_ylim()[1] * 0.9, f'{threshold_99:.3f}',
              color='red', fontsize=12, fontweight='bold', ha='left', va='bottom')
-
-    # Customize x-axis ticks for better readability
-    x_ticks = np.arange(0, 1.1, 0.1)  # Set ticks every 0.1 instead of 0.05
+    x_ticks = np.arange(0, 1.1, 0.1)
     plt.xticks(x_ticks, fontsize=12)
     plt.yticks(fontsize=12)
-
-    # Add title and labels with improved fonts
     plt.title('Distribution of Mean Train RMSE', fontsize=18, fontweight='bold')
     plt.xlabel('Mean RMSE', fontsize=14)
     plt.ylabel('Frequency', fontsize=14)
-
-    # Add a grid for better readability
     plt.grid(True, linestyle='--', alpha=0.6)
-
-    # Add a legend with improved styling
     plt.legend(fontsize=12, loc='upper right', frameon=True, shadow=True)
-
-    # Tight layout for a clean figure
     plt.tight_layout()
-    plt.savefig('Distribution of Mean Train RMSE.png')
+    plt.savefig('Distribution of Mean Train RMSE LSTM.png')
     plt.close()
     # plt.show()
 
