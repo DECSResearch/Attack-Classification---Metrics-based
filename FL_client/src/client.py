@@ -51,8 +51,8 @@ CLIENT_ID = args.id
 def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_true - y_pred)))
 
-#temp_loss = []
-#temp_mape = []
+# temp_loss = []
+# temp_rmse = []
 
 # Set random seed for reproducibility
 np.random.seed(42)
@@ -169,13 +169,13 @@ class FlowerClient(fl.client.NumPyClient):
 # We don't need evaluation as we do not have test data
 #     def evaluate(self, parameters, config):
 #         model.set_weights(parameters)
-#         eval_loss, eval_mape = self.model.evaluate(X_train, y_train)
+#         eval_loss, eval_rmse = self.model.evaluate(X_train, y_train)
 #
 #         temp_loss.append(eval_loss)
-#         temp_mape.append(eval_mape)
+#         temp_mape.append(eval_rmse)
 #
 #         print(f"Eval Loss: {eval_loss} || Eval RMSE: {eval_rmse}")
-#         return eval_loss, len(X_test), {"rmse": eval_rmse}
+#         return eval_loss, len(X_train), {"rmse": eval_rmse}
 
 # Main Function
 if __name__ == "__main__":
@@ -186,25 +186,23 @@ if __name__ == "__main__":
     X_train, y_train = preprocess_dataset(df)
 
     # Define the model
-    # LSTM
-    model = Sequential()
-    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True))
-    model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
-    model.add(RepeatVector(X_train.shape[1]))
-    model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-    model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-    model.add(TimeDistributed(Dense(X_train.shape[2])))
-
-    # # BiLSTM
+    # # LSTM
     # model = Sequential()
-    # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(trainX.shape[1], trainX.shape[2]), return_sequences=True)))
-    # # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
-    # model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False)))
-    # model.add(RepeatVector(trainX.shape[1]))
-    # # model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
-    # model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
-    # model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
-    # model.add(TimeDistributed(Dense(trainX.shape[2])))
+    # model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True))
+    # model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
+    # model.add(RepeatVector(X_train.shape[1]))
+    # model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
+    # model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
+    # model.add(TimeDistributed(Dense(X_train.shape[2])))
+
+    # BiLSTM
+    model = Sequential()
+    model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=True)))
+    model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False)))
+    model.add(RepeatVector(X_train.shape[1]))
+    model.add(Bidirectional(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
+    model.add(Bidirectional(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True)))
+    model.add(TimeDistributed(Dense(X_train.shape[2])))
 
     model.compile(optimizer=Adam(learning_rate=0.0001), loss='mse', metrics=[rmse])
 
@@ -220,7 +218,7 @@ if __name__ == "__main__":
     fl.client.start_numpy_client(server_address=SERVER_ADDR, client=flower_client)
 
     # Save the trained model
-    joblib.dump(model, 'NFL-LSTM.joblib')
+    joblib.dump(model, 'NFL-BiLSTM.joblib')
 
 ################ CALCULATING THE loss AND RMSE FOR TRAIN AND TEST FOR THRESHOLDING ###################
 
@@ -272,7 +270,7 @@ if __name__ == "__main__":
     plt.grid(True, linestyle='--', alpha=0.6)
     plt.legend(fontsize=12, loc='upper right', frameon=True, shadow=True)
     plt.tight_layout()
-    plt.savefig('Distribution of Mean Train RMSE LSTM.png')
+    plt.savefig('Histogram-FL-BiLSTM-FLWR.png')
     plt.close()
     # plt.show()
 

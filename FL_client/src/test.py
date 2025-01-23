@@ -45,7 +45,7 @@ def rmse(y_true, y_pred):
 model = joblib.load('NFL-LSTM.joblib')
 
 # Load the dataset
-data1 = pd.read_csv('Test_data/Nano07V2_gt.csv')
+data1 = pd.read_csv('Test_data/Nano07V3_gt.csv')
 
 # Select only the 'timestamp', 'jetson_gpu_usage_percent', 'jetson_cpu_usage_percent', and 'ground_truth' columns
 combined_data = data1[['timestamp', 'jetson_gpu_usage_percent', 'jetson_cpu_usage_percent', 'jetson_board_temperature_celsius', 'jetson_ram_usage_mb', 'ground_truth']]
@@ -157,7 +157,7 @@ plt.text(x=anomaly_df.index[-1],
          bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'))
 
 # Customize the plot
-plt.title('Anomaly Detection on Testing Data (Version 1)', fontsize=16, fontweight='bold')
+plt.title('Anomaly Detection on Testing Data (Version 3)', fontsize=16, fontweight='bold')
 plt.xlabel('Index', fontsize=14)
 plt.ylabel('Root Mean Squared Error (RMSE)', fontsize=14)
 plt.xticks(fontsize=12, rotation=45)
@@ -168,7 +168,7 @@ plt.grid(True, linestyle='--', alpha=0.7)
 # Add background color to make the plot more appealing
 plt.gcf().set_facecolor('white')
 plt.tight_layout()
-plt.savefig('Testing-V2-FL-LSTM-FLWR.png')
+plt.savefig('Testing-V3-FL-LSTM-FLWR.png')
 plt.close()
 
 
@@ -198,5 +198,5 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Normal', 'Anoma
 plt.title('Confusion Matrix')
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
-plt.savefig('CM-TestingV2-FL-LSTM-FLWR.png')
+plt.savefig('CM-TestingV3-FL-LSTM-FLWR.png')
 plt.close()
