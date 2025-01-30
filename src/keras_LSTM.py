@@ -90,13 +90,13 @@ class KerasLSTM(KerasTaskRunner):
         model = Sequential()
         
         #LSTM
-        model.add(LSTM(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, input_shape=input_shape))
-        model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
+        model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, input_shape=input_shape))
+        #model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
         model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=False))
         model.add(RepeatVector(input_shape[0]))
         model.add(LSTM(32, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
         model.add(LSTM(64, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
-        model.add(LSTM(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
+        #model.add(LSTM(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True))
         model.add(TimeDistributed(Dense(input_shape[1])))
         
         #BiLSTM
@@ -109,9 +109,9 @@ class KerasLSTM(KerasTaskRunner):
         
         model.compile(
         
-            #optimizer = FedProxOptimizer(learning_rate=0.001, mu=0.01), #FedProx
-            optimizer=ke.optimizers.legacy.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7), #FedAvg
-            loss='mae',
+            #optimizer = FedProxOptimizer(learning_rate=0.0001, mu=0.01), #FedProx
+            optimizer=ke.optimizers.legacy.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-7), #FedAvg
+            loss='mse',
             metrics=['RootMeanSquaredError']
         )
         

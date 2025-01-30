@@ -41,7 +41,7 @@ network:
     agg_addr: 192.168.1.24 #lab testbed new
     #agg_addr: 192.168.1.23 # lab testbed
     #agg_addr: 172.18.63.17 # my PC with GPU
-    agg_port: 8080
+    agg_port: 8081
     cert_folder: cert
     client_reconnect_interval: 5
     disable_client_auth: true

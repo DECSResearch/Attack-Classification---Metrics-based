@@ -24,7 +24,7 @@ class KerasLSTMInMemory(TensorFlowDataLoader):
             train_indices = indices[:train_size]
             valid_indices = indices[train_size:]
             
-            self.X_train = X_train[train_indices]
+            self.X_train = X_train
             self.X_valid = X_train[valid_indices]
 
             self.y_train = self.X_train

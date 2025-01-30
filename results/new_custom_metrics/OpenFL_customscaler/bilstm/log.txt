@@ -1,0 +1,252 @@
+root@ubuntu:/app# fx aggregator start
+2025-01-29 20:27:11.802496: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9360] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2025-01-29 20:27:11.802596: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2025-01-29 20:27:11.802650: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1537] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+/usr/local/lib/python3.10/dist-packages/_distutils_hack/__init__.py:33: UserWarning: Setuptools is replacing distutils.
+  warnings.warn("Setuptools is replacing distutils.")
+[20:27:19] INFO     FL-Plan hash is 81a59fa5322a642b1f49e1ad73872533110001564254356f5cc062abc2d26f87ef27c6dffd3d5454dc351422ac3e4751                 plan.py:290
+   32:41        INFO     Parsing Federated Learning Plan : SUCCESS : /app/plan/plan.yaml.                                                                 plan.py:195
+           INFO     aggregator:                                                                                                                      plan.py:200
+                      settings:                                                                                                                                 
+                        best_state_path: save/best.pbuf                                                                                                         
+                        db_store_rounds: 1                                                                                                                      
+                        init_state_path: save/init.pbuf                                                                                                         
+                        last_state_path: save/last.pbuf                                                                                                         
+                        rounds_to_train: 5                                                                                                                      
+                        write_logs: true                                                                                                                        
+                      template: openfl.component.Aggregator                                                                                                     
+                    assigner:                                                                                                                                   
+                      settings:                                                                                                                                 
+                        task_groups:                                                                                                                            
+                        - name: train_and_validate                                                                                                              
+                          percentage: 1.0                                                                                                                       
+                          tasks:                                                                                                                                
+                          - aggregated_model_validation                                                                                                         
+                          - train                                                                                                                               
+                          - locally_tuned_model_validation                                                                                                      
+                      template: openfl.component.RandomGroupedAssigner                                                                                          
+                    collaborator:                                                                                                                               
+                      settings:                                                                                                                                 
+                        db_store_rounds: 1                                                                                                                      
+                        delta_updates: false                                                                                                                    
+                        opt_treatment: RESET                                                                                                                    
+                      template: openfl.component.Collaborator                                                                                                   
+                    compression_pipeline:                                                                                                                       
+                      settings:                                                                                                                                 
+                        n_clusters: 2                                                                                                                           
+                      template: openfl.pipelines.NoCompressionPipeline                                                                                          
+                    data_loader:                                                                                                                                
+                      settings:                                                                                                                                 
+                        batch_size: 128                                                                                                                         
+                        collaborator_count: 2                                                                                                                   
+                        data_group_name: Anomalous_data                                                                                                         
+                        data_path: data/Anomalous_data/                                                                                                         
+                        timesteps: 20                                                                                                                           
+                      template: src.kerasLSTM_inmemory.KerasLSTMInMemory                                                                                        
+                    network:                                                                                                                                    
+                      settings:                                                                                                                                 
+                        agg_addr: 192.168.1.24                                                                                                                  
+                        agg_port: 8081                                                                                                                          
+                        cert_folder: cert                                                                                                                       
+                        client_reconnect_interval: 5                                                                                                            
+                        disable_client_auth: true                                                                                                               
+                        hash_salt: auto                                                                                                                         
+                        tls: false                                                                                                                              
+                      template: openfl.federation.Network                                                                                                       
+                    task_runner:                                                                                                                                
+                      settings:                                                                                                                                 
+                        input_shape:                                                                                                                            
+                        - 20                                                                                                                                    
+                        - 4                                                                                                                                     
+                      template: src.keras_LSTM.KerasLSTM                                                                                                        
+                    tasks:                                                                                                                                      
+                      aggregated_model_validation:                                                                                                              
+                        function: validate                                                                                                                      
+                        kwargs:                                                                                                                                 
+                          apply: global                                                                                                                         
+                          batch_size: 32                                                                                                                        
+                          metrics:                                                                                                                              
+                          - root_mean_squared_error                                                                                                             
+                      locally_tuned_model_validation:                                                                                                           
+                        function: validate                                                                                                                      
+                        kwargs:                                                                                                                                 
+                          apply: local                                                                                                                          
+                          batch_size: 32                                                                                                                        
+                          metrics:                                                                                                                              
+                          - root_mean_squared_error                                                                                                             
+                      settings: {}                                                                                                                              
+                      train:                                                                                                                                    
+                        aggregation_type:                                                                                                                       
+                          template: openfl.interface.aggregation_functions.WeightedAverage                                                                      
+                        function: train                                                                                                                         
+                        kwargs:                                                                                                                                 
+                          batch_size: 128                                                                                                                       
+                          epochs: 10                                                                                                                            
+                          metrics:                                                                                                                              
+                          - root_mean_squared_error                                                                                                             
+                                                                                                                                                                
+           INFO     🧿 Starting the Aggregator Service.                                                                                         aggregator.py:84
+           INFO     Building `openfl.interface.aggregation_functions.WeightedAverage` Module.                                                        plan.py:228
+           INFO     Building `openfl.component.RandomGroupedAssigner` Module.                                                                        plan.py:228
+           INFO     Building `openfl.pipelines.NoCompressionPipeline` Module.                                                                        plan.py:228
+           INFO     Building `openfl.component.straggler_handling_functions.CutoffTimeBasedStragglerHandling` Module.                                plan.py:228
+           WARNING  CutoffTimeBasedStragglerHandling is disabled as straggler_cutoff_time is set to np.inf.           cutoff_time_based_straggler_handling.py:45
+           INFO     Building `openfl.component.Aggregator` Module.                                                                                   plan.py:228
+           WARNING  gRPC is running on insecure channel with TLS disabled.                                                              aggregator_server.py:311
+           INFO     Insecure port: 8081                                                                                                 aggregator_server.py:313
+           INFO     Starting Aggregator gRPC Server                                                                                     aggregator_server.py:345
+[20:28:04] INFO     Sending tasks to collaborator 1 for round 0                                                                                aggregator.py:398
+[20:28:36] INFO     Collaborator 1 is sending task results for aggregated_model_validation, round 0                                            aggregator.py:618
+           METRIC   {'round': 0, 'metric_origin': '1', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 2.6723251342773438}                                                                                                         
+[20:32:23] INFO     Sending tasks to collaborator 2 for round 0                                                                                aggregator.py:398
+[20:32:55] INFO     Collaborator 2 is sending task results for aggregated_model_validation, round 0                                            aggregator.py:618
+           METRIC   {'round': 0, 'metric_origin': '2', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 2.651303291320801}                                                                                                          
+[20:38:16] INFO     Collaborator 1 is sending task results for train, round 0                                                                  aggregator.py:618
+           METRIC   {'round': 0, 'metric_origin': '1', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.13027070462703705}                                                                                                                        
+[20:38:37] INFO     Collaborator 1 is sending task results for locally_tuned_model_validation, round 0                                         aggregator.py:618
+           METRIC   {'round': 0, 'metric_origin': '1', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.12717390060424805}                                                                             
+           INFO     Round: 0, Collaborators that have completed all tasks: ['1']                                                              aggregator.py:1025
+[20:41:51] INFO     Collaborator 2 is sending task results for train, round 0                                                                  aggregator.py:618
+           METRIC   {'round': 0, 'metric_origin': '2', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.12134137749671936}                                                                                                                        
+[20:42:10] INFO     Collaborator 2 is sending task results for locally_tuned_model_validation, round 0                                         aggregator.py:618
+           METRIC   {'round': 0, 'metric_origin': '2', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.12250491976737976}                                                                             
+           INFO     Round: 0, Collaborators that have completed all tasks: ['1', '2']                                                         aggregator.py:1025
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'locally_tuned_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:933
+                    'metric_value': 0.1248394101858139, 'round': 0}                                                                                             
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':            aggregator.py:933
+                    0.1258060410618782, 'round': 0}                                                                                                             
+[20:42:11] METRIC   {'metric_origin': 'aggregator', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',      aggregator.py:933
+                    'metric_value': 2.6618142127990723, 'round': 0}                                                                                             
+           METRIC   Round 0: saved the best model with score 2.661814                                                                          aggregator.py:939
+           INFO     Saving round 1 model...                                                                                                    aggregator.py:978
+           INFO     Starting round 1...                                                                                                        aggregator.py:985
+           INFO     Sending tasks to collaborator 2 for round 1                                                                                aggregator.py:398
+[20:42:17] INFO     Sending tasks to collaborator 1 for round 1                                                                                aggregator.py:398
+[20:42:31] INFO     Collaborator 2 is sending task results for aggregated_model_validation, round 1                                            aggregator.py:618
+           METRIC   {'round': 1, 'metric_origin': '2', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.44094106554985046}                                                                                                        
+[20:42:37] INFO     Collaborator 1 is sending task results for aggregated_model_validation, round 1                                            aggregator.py:618
+           METRIC   {'round': 1, 'metric_origin': '1', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.4335728585720062}                                                                                                         
+[20:50:27] INFO     Collaborator 2 is sending task results for train, round 1                                                                  aggregator.py:618
+           METRIC   {'round': 1, 'metric_origin': '2', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.11317066848278046}                                                                                                                        
+[20:50:45] INFO     Collaborator 2 is sending task results for locally_tuned_model_validation, round 1                                         aggregator.py:618
+           METRIC   {'round': 1, 'metric_origin': '2', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.11431857198476791}                                                                             
+           INFO     Round: 1, Collaborators that have completed all tasks: ['2']                                                              aggregator.py:1025
+[20:51:14] INFO     Collaborator 1 is sending task results for train, round 1                                                                  aggregator.py:618
+           METRIC   {'round': 1, 'metric_origin': '1', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.11978548020124435}                                                                                                                        
+[20:51:34] INFO     Collaborator 1 is sending task results for locally_tuned_model_validation, round 1                                         aggregator.py:618
+           METRIC   {'round': 1, 'metric_origin': '1', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.11784368008375168}                                                                             
+           INFO     Round: 1, Collaborators that have completed all tasks: ['2', '1']                                                         aggregator.py:1025
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'locally_tuned_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:933
+                    'metric_value': 0.1160811260342598, 'round': 1}                                                                                             
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':            aggregator.py:933
+                    0.1164780743420124, 'round': 1}                                                                                                             
+[20:51:35] METRIC   {'metric_origin': 'aggregator', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',      aggregator.py:933
+                    'metric_value': 0.43725696206092834, 'round': 1}                                                                                            
+           INFO     Saving round 2 model...                                                                                                    aggregator.py:978
+           INFO     Starting round 2...                                                                                                        aggregator.py:985
+           INFO     Sending tasks to collaborator 1 for round 2                                                                                aggregator.py:398
+           INFO     Sending tasks to collaborator 2 for round 2                                                                                aggregator.py:398
+[20:51:54] INFO     Collaborator 2 is sending task results for aggregated_model_validation, round 2                                            aggregator.py:618
+           METRIC   {'round': 2, 'metric_origin': '2', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.15611302852630615}                                                                                                        
+           INFO     Collaborator 1 is sending task results for aggregated_model_validation, round 2                                            aggregator.py:618
+           METRIC   {'round': 2, 'metric_origin': '1', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.15788088738918304}                                                                                                        
+[20:59:58] INFO     Collaborator 2 is sending task results for train, round 2                                                                  aggregator.py:618
+           METRIC   {'round': 2, 'metric_origin': '2', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.10699909925460815}                                                                                                                        
+[21:00:17] INFO     Collaborator 2 is sending task results for locally_tuned_model_validation, round 2                                         aggregator.py:618
+           METRIC   {'round': 2, 'metric_origin': '2', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.10932940989732742}                                                                             
+           INFO     Round: 2, Collaborators that have completed all tasks: ['2']                                                              aggregator.py:1025
+[21:00:18] INFO     Collaborator 1 is sending task results for train, round 2                                                                  aggregator.py:618
+           METRIC   {'round': 2, 'metric_origin': '1', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.11277591437101364}                                                                                                                        
+[21:00:37] INFO     Collaborator 1 is sending task results for locally_tuned_model_validation, round 2                                         aggregator.py:618
+           METRIC   {'round': 2, 'metric_origin': '1', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.11091850697994232}                                                                             
+           INFO     Round: 2, Collaborators that have completed all tasks: ['2', '1']                                                         aggregator.py:1025
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'locally_tuned_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:933
+                    'metric_value': 0.11012395843863487, 'round': 2}                                                                                            
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':            aggregator.py:933
+                    0.1098875068128109, 'round': 2}                                                                                                             
+[21:00:38] METRIC   {'metric_origin': 'aggregator', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',      aggregator.py:933
+                    'metric_value': 0.1569969579577446, 'round': 2}                                                                                             
+           INFO     Saving round 3 model...                                                                                                    aggregator.py:978
+           INFO     Starting round 3...                                                                                                        aggregator.py:985
+           INFO     Sending tasks to collaborator 1 for round 3                                                                                aggregator.py:398
+[21:00:47] INFO     Sending tasks to collaborator 2 for round 3                                                                                aggregator.py:398
+[21:00:58] INFO     Collaborator 1 is sending task results for aggregated_model_validation, round 3                                            aggregator.py:618
+           METRIC   {'round': 3, 'metric_origin': '1', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.13295286893844604}                                                                                                        
+[21:01:06] INFO     Collaborator 2 is sending task results for aggregated_model_validation, round 3                                            aggregator.py:618
+           METRIC   {'round': 3, 'metric_origin': '2', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.13384442031383514}                                                                                                        
+[21:09:19] INFO     Collaborator 1 is sending task results for train, round 3                                                                  aggregator.py:618
+           METRIC   {'round': 3, 'metric_origin': '1', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.1075337678194046}                                                                                                                         
+[21:09:22] INFO     Collaborator 2 is sending task results for train, round 3                                                                  aggregator.py:618
+           METRIC   {'round': 3, 'metric_origin': '2', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.10265205800533295}                                                                                                                        
+[21:09:39] INFO     Collaborator 1 is sending task results for locally_tuned_model_validation, round 3                                         aggregator.py:618
+           METRIC   {'round': 3, 'metric_origin': '1', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.10711347311735153}                                                                             
+           INFO     Round: 3, Collaborators that have completed all tasks: ['1']                                                              aggregator.py:1025
+[21:09:41] INFO     Collaborator 2 is sending task results for locally_tuned_model_validation, round 3                                         aggregator.py:618
+           METRIC   {'round': 3, 'metric_origin': '2', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.10375672578811646}                                                                             
+           INFO     Round: 3, Collaborators that have completed all tasks: ['1', '2']                                                         aggregator.py:1025
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'locally_tuned_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:933
+                    'metric_value': 0.105435099452734, 'round': 3}                                                                                              
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':            aggregator.py:933
+                    0.10509291291236877, 'round': 3}                                                                                                            
+[21:09:42] METRIC   {'metric_origin': 'aggregator', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',      aggregator.py:933
+                    'metric_value': 0.1333986446261406, 'round': 3}                                                                                             
+           INFO     Saving round 4 model...                                                                                                    aggregator.py:978
+           INFO     Starting round 4...                                                                                                        aggregator.py:985
+           INFO     Sending tasks to collaborator 2 for round 4                                                                                aggregator.py:398
+[21:09:49] INFO     Sending tasks to collaborator 1 for round 4                                                                                aggregator.py:398
+[21:10:02] INFO     Collaborator 2 is sending task results for aggregated_model_validation, round 4                                            aggregator.py:618
+           METRIC   {'round': 4, 'metric_origin': '2', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.11471161991357803}                                                                                                        
+[21:10:08] INFO     Collaborator 1 is sending task results for aggregated_model_validation, round 4                                            aggregator.py:618
+           METRIC   {'round': 4, 'metric_origin': '1', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:659
+                    'metric_value': 0.11884314566850662}                                                                                                        
+[21:18:16] INFO     Collaborator 2 is sending task results for train, round 4                                                                  aggregator.py:618
+           METRIC   {'round': 4, 'metric_origin': '2', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.0992787778377533}                                                                                                                         
+[21:18:35] INFO     Collaborator 1 is sending task results for train, round 4                                                                  aggregator.py:618
+           METRIC   {'round': 4, 'metric_origin': '1', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':         aggregator.py:659
+                    0.10320402681827545}                                                                                                                        
+           INFO     Collaborator 2 is sending task results for locally_tuned_model_validation, round 4                                         aggregator.py:618
+           METRIC   {'round': 4, 'metric_origin': '2', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.10248148441314697}                                                                             
+           INFO     Round: 4, Collaborators that have completed all tasks: ['2']                                                              aggregator.py:1025
+[21:18:54] INFO     Collaborator 1 is sending task results for locally_tuned_model_validation, round 4                                         aggregator.py:618
+           METRIC   {'round': 4, 'metric_origin': '1', 'task_name': 'locally_tuned_model_validation', 'metric_name':                           aggregator.py:659
+                    'root_mean_squared_error', 'metric_value': 0.10141601413488388}                                                                             
+           INFO     Round: 4, Collaborators that have completed all tasks: ['2', '1']                                                         aggregator.py:1025
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'locally_tuned_model_validation', 'metric_name': 'root_mean_squared_error',   aggregator.py:933
+                    'metric_value': 0.10194874927401543, 'round': 4}                                                                                            
+           METRIC   {'metric_origin': 'aggregator', 'task_name': 'train', 'metric_name': 'root_mean_squared_error', 'metric_value':            aggregator.py:933
+                    0.10124140232801437, 'round': 4}                                                                                                            
+[21:18:55] METRIC   {'metric_origin': 'aggregator', 'task_name': 'aggregated_model_validation', 'metric_name': 'root_mean_squared_error',      aggregator.py:933
+                    'metric_value': 0.11677738279104233, 'round': 4}                                                                                            
+           INFO     Saving round 5 model...                                                                                                    aggregator.py:978
+           INFO     Experiment Completed. Cleaning up...                                                                                       aggregator.py:983
+   32:41        INFO     Sending signal to collaborator 1 to shutdown...                                                                            aggregator.py:345
+[21:18:56] INFO     Sending signal to collaborator 2 to shutdown...                                                                            aggregator.py:345
+32:50, 18:50, 51:40
+ ✔️ OK
