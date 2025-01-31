@@ -18,39 +18,10 @@ def parse_arguments():
 def get_round_config(server_round: int) -> Dict:
     return {"server_round": server_round}
 
-# def weighted_average(metrics: List[Tuple[int, fl.common.Metrics]]) -> fl.common.Metrics:
-#     accuracies = [num_examples * m["mape"] for num_examples, m in metrics]
-#     examples = [num_examples for num_examples, _ in metrics]
-#     return {"mape": sum(accuracies) / sum(examples)}
-
-# def weighted_average(metrics: List[Tuple[int, fl.common.Metrics]]) -> fl.common.Metrics:
-#     total_examples = sum(num_examples for num_examples, _ in metrics)
-#
-#     # Weighted sum of MSE
-#     total_mse = sum(num_examples * m["mse"] for num_examples, m in metrics)
-#
-#     # Calculate weighted average of MSE
-#     weighted_mse = total_mse / total_examples
-#
-#     # Calculate RMSE from MSE
-#     weighted_rmse = np.sqrt(weighted_mse)
-#
-#     return {"mse": weighted_mse, "rmse": weighted_rmse}
-
 def weighted_average(metrics: List[Tuple[int, fl.common.Metrics]]) -> fl.common.Metrics:
-    total_examples = sum(num_examples for num_examples, _ in metrics)
-
-    # Weighted sum of MSE
-    total_mse = sum(num_examples * m["mse"] for num_examples, m in metrics)
-
-    # Calculate weighted average of MSE
-    weighted_mse = total_mse / total_examples
-
-    # Calculate RMSE from weighted MSE
-    weighted_rmse = np.sqrt(weighted_mse)
-
-    # Return only RMSE as the metric
-    return {"rmse": weighted_rmse}
+    accuracies = [num_examples * m["rmse"] for num_examples, m in metrics]
+    examples = [num_examples for num_examples, _ in metrics]
+    return {"rmse": sum(accuracies) / sum(examples)}
 
 
 class SaveModelStrategy(fl.server.strategy.FedAvg):
@@ -91,7 +62,7 @@ if __name__ == "__main__":
         min_available_clients=min_num_clients,
         on_fit_config_fn=get_round_config,
         evaluate_metrics_aggregation_fn=weighted_average,
-       # fit_metrics_aggregation_fn=weighted_average,
+        #fit_metrics_aggregation_fn=weighted_average,
     )
 
     # Server logs
