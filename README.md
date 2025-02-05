@@ -76,7 +76,3 @@ After the federated learning process completes:
    # Or export the best performing model
    fx model save -i save/best.pbuf
    ```
-   - On client 2:
-     ```bash
-     fx collaborator start -n 2
-     ```
