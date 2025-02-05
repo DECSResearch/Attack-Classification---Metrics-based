@@ -1,18 +1,51 @@
-# Openfl
-## A federated learning framework
+# OpenFL
 
-#ulimit -s unlimited
+A Framework for Federated Learning
 
-([reference](https://openfl.readthedocs.io/en/latest/))
+## Prerequisites
 
-- docker run -it --rm --network host --name openflserver --rm -e GRPC_VERBOSITY=DEBUG -e GRPC_TRACE=all changcunlei/openfl-test-tensorflow2.14-l4t-r36.2.0-bilstm:latest bash
-- docker run -it --rm --network host --name openflclient1 --rm -e GRPC_VERBOSITY=DEBUG -e GRPC_TRACE=all changcunlei/openfl-test-tensorflow2.14-l4t-r36.2.0-bilstm:latest bash
-- docker run -it --rm --network host --name openflclient2 --rm -e GRPC_VERBOSITY=DEBUG -e GRPC_TRACE=all changcunlei/openfl-test-tensorflow2.14-l4t-r36.2.0-bilstm:latest bash
+Before running the framework, execute the following command to remove Docker RAM usage limitations:
+```bash
+ulimit -s unlimited
+```
 
-- docker run -it --rm --network host --name openflserver --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/openfl-test-tensorflow2.14-l4t-r36.2.0-bilstm:latest bash
-- docker run -it --rm --network host --name openflclient1 --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/openfl-test-tensorflow2.14-l4t-r36.2.0-bilstm:latest bash
-- docker run -it --rm --network host --name openflclient2 --rm --runtime=nvidia --gpus all -e NVIDIA_VISIBLE_DEVICES=all changcunlei/openfl-test-tensorflow2.14-l4t-r36.2.0-bilstm:latest bash
+For more detailed information, please refer to the [official OpenFL documentation](https://openfl.readthedocs.io/en/latest/).
 
-- In openflserver run "fx aggregator start"
-- In openflclient1 run "fx collaborator start -n 1"
-- In openflclient2 run "fx collaborator start -n 2"
+## Quick Start
+
+### Launch the Container
+
+Run the following command to start the Docker container with GPU support:
+```bash
+sudo docker run -it --rm \
+  --network host \
+  --name openfl \
+  --runtime=nvidia \
+  --gpus all \
+  -e NVIDIA_VISIBLE_DEVICES=all \
+  320158lcc/openfl-611:latest \
+  bash
+```
+
+### Initialize and Start the Framework
+
+1. On the OpenFL server, initialize the model:
+   ```bash
+   fx plan initialize
+   ```
+   This creates the initial model file (`init.pbuf`).
+
+2. Start the aggregator on the server:
+   ```bash
+   fx aggregator start
+   ```
+
+3. Start the collaborators on the client machines:
+   - On client 1:
+     ```bash
+     fx collaborator start -n 1
+     ```
+   - On client 2:
+     ```bash
+     fx collaborator start -n 2
+     ```
