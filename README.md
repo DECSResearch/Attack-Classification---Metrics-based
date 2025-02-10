@@ -41,7 +41,7 @@ exit            # Exit the program
 
 3. **Random Mode**
    - Randomly alternates between stress and rest
-   - Random intervals between 5-30 seconds
+   - Random intervals between 5-30 seconds (can be configured in the code)
    - Example: `mode random; duration 900; cpu 90; start`
 
 ## Technical Details
