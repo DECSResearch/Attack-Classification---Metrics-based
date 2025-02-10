@@ -2,6 +2,40 @@
 
 A comprehensive stress testing tool for NVIDIA Jetson devices that allows precise control over CPU and GPU load levels with multiple testing modes.
 
+## Important Implementation Note
+- you may need to run "sed -i 's/\r$//' stressing.sh" before running the script
+
+**CPU Stress Testing:**
+- Can be run directly on the host machine
+- No need for Docker - run the script directly on Jetson Nano
+- Provides better performance and more accurate load control
+
+**GPU Stress Testing:**
+- If you run the GPU stress testing outside Docker, make sure the CUDA environment is configured properly
+- Docker container provides pre-configured environment with:
+  - TensorFlow
+  - CUDA
+  - Required GPU drivers
+  - All necessary dependencies
+
+## Docker Setup for GPU Testing
+
+```bash
+# Run the Docker container
+sudo docker run -it --rm \
+    --network host \
+    --name stressing \
+    --runtime=nvidia \
+    -v /usr/bin/tegrastats:/usr/bin/tegrastats \
+    --gpus all \
+    -e NVIDIA_VISIBLE_DEVICES=all \
+    changcunlei/attack-simulation:latest \
+    bash
+
+# Inside container, run the stress test script
+./stressing.sh
+```
+
 ## Features
 
 - CPU stress testing with configurable load levels (0-100%)
@@ -41,8 +75,39 @@ exit            # Exit the program
 
 3. **Random Mode**
    - Randomly alternates between stress and rest
-   - Random intervals between 5-30 seconds (can be configured in the code)
+   - Random intervals between 5-30 seconds (you can configure that in the code)
    - Example: `mode random; duration 900; cpu 90; start`
+
+## Example Workflows
+
+### CPU Stress Testing (Run on Host)
+```bash
+# Run directly on Jetson Nano
+./stressing.sh
+
+# Then in the script:
+cpu 50
+mode continuous
+duration 300
+start
+```
+
+### GPU Stress Testing (Run in Docker)
+```bash
+# 1. First start Docker container
+sudo docker run -it --rm --runtime=nvidia --gpus all changcunlei/attack-simulation:latest bash
+
+# 2. Then inside container run the script:
+./stressing.sh
+
+# 3. Configure GPU test:
+gpu 80
+mode interval
+duration 600
+stress-time 60
+rest-time 30
+start
+```
 
 ## Technical Details
 
@@ -54,7 +119,7 @@ exit            # Exit the program
 
 ### GPU Stress Implementation
 - Uses TensorFlow for matrix multiplication operations
-- Predefined matrix sizes for different load levels:
+- Predefined matrix sizes for different load levels, you can change them:
 ```python
 GPU_PARAMS = {
     "10": "50x50 matrix",
@@ -70,62 +135,6 @@ GPU_PARAMS = {
 - Manages GPU process with `GPU_PID`
 - Implements proper cleanup on exit/interrupt
 - Uses trap for SIGINT and SIGTERM signals
-
-### Monitoring
-- Real-time CPU usage monitoring via `top`
-- Status command shows:
-  - Current CPU/GPU levels
-  - Active mode
-  - Duration settings
-  - Current CPU usage
-
-## Error Handling
-
-The script includes error checking for:
-- Invalid CPU/GPU levels
-- Missing duration settings
-- Incomplete interval mode settings
-- Process cleanup on exit
-
-## Performance Notes
-
-1. **CPU Load Control**
-   - Achieves precise load levels through microsecond timing
-   - Minimal system impact when idle
-   - Scales efficiently across all cores
-
-2. **GPU Load Control**
-   - Uses calibrated matrix sizes for different load levels
-   - Includes sleep intervals for fine-tuning
-   - Efficient TensorFlow implementation
-
-## Example Workflows
-
-1. Basic CPU Test:
-```bash
-cpu 50
-mode continuous
-duration 300
-start
-```
-
-2. Interval GPU Test:
-```bash
-gpu 80
-mode interval
-duration 600
-stress-time 60
-rest-time 30
-start
-```
-
-3. Random CPU Test:
-```bash
-cpu 70
-mode random
-duration 900
-start
-```
 
 ## Safety Features
 
